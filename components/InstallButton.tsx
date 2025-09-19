@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 export default function InstallButton(){
   const [deferred, setDeferred] = useState<any>(null)
   const [visible, setVisible] = useState(false)
+  const [showHint, setShowHint] = useState(false)
 
   useEffect(()=>{
     const handler = (e: any) => {
@@ -11,7 +12,9 @@ export default function InstallButton(){
       setVisible(true)
     }
     window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    // After a few seconds, if no event fired, show hint
+    const t = setTimeout(()=> setShowHint(true), 2500)
+    return () => { window.removeEventListener('beforeinstallprompt', handler); clearTimeout(t) }
   },[])
 
   async function doInstall(){
@@ -22,6 +25,14 @@ export default function InstallButton(){
     setVisible(false)
   }
 
-  if (!visible) return null
-  return <button className="btn" onClick={doInstall}>Install App</button>
+  return (
+    <div style={{display:'flex', gap:8, alignItems:'center', flexWrap:'wrap'}}>
+      {visible && <button className="btn" onClick={doInstall}>Install App</button>}
+      {!visible && showHint && (
+        <div className="hint small">
+          On Android, open the ⋮ menu in Chrome → <b>Add to Home screen</b>.
+        </div>
+      )}
+    </div>
+  )
 }
