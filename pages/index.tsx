@@ -87,6 +87,10 @@ function alreadyDone(p: Prompt){
 
   return (
     <div className="container">
+      <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:24}}>
+        <img src="/icon-192.png" alt="LSI Logo" style={{width:48, height:48, borderRadius:8}} />
+        <h1 style={{margin:0}}>LSI Micro Actions</h1>
+      </div>
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:8}}>
         <h1 style={{fontWeight:700}}>Micro‑Actions</h1>
         <div className="brand" title={TEAM_NAME}><span className="brand-dot"/><span>{TEAM_NAME}</span></div>
