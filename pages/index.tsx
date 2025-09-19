@@ -23,11 +23,6 @@ export default function Home(){
   const [name, setName] = useState('')
   const [zip, setZip] = useState('')
   const [actions, setActions] = useState<Action[]>([])
-const today = todayISO();
-function alreadyDone(p: Prompt){
-  return actions.some(a => a.date === today && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
-}
-
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [draft, setDraft] = useState<Action>({ id: '', date: todayISO(), category: 'civic', minutes: 5 })
   const [toast, setToast] = useState<string | null>(null)
@@ -91,12 +86,11 @@ function alreadyDone(p: Prompt){
         <img src="/icon-192.png" alt="LSI Logo" style={{width:48, height:48, borderRadius:8}} />
         <h1 style={{margin:0}}>LSI Micro Actions</h1>
       </div>
-      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:8}}>
-        <h1 style={{fontWeight:700}}>Micro‑Actions</h1>
-        <div className="brand" title={TEAM_NAME}><span className="brand-dot"/><span>{TEAM_NAME}</span></div>
-      </div>
 
-      <div style={{marginTop:8}}><InstallButton /></div>
+      <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:8}}>
+        <div className="brand" title={TEAM_NAME}><span className="brand-dot"/><span>{TEAM_NAME}</span></div>
+        <div><InstallButton /></div>
+      </div>
 
       <div className="row" style={{marginTop:12}}>
         <div className="card span2">
@@ -142,12 +136,7 @@ function alreadyDone(p: Prompt){
                   </button>
                 </div>
               </li>)
-            })} disabled={alreadyDone(p)} style={{opacity: alreadyDone(p) ? 0.6 : 1, cursor: alreadyDone(p) ? 'not-allowed' : 'pointer'}}>
-                    {alreadyDone(p) ? 'Logged' : 'Log this'}
-                  </button>
-                </div>
-              </li>
-            ))}
+            })}
           </ul>
         )}
         <p className="small" style={{marginTop:8}}>Tip: tap “Log this” to prefill the action, then hit Add.</p>
