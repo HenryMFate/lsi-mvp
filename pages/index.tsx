@@ -9,6 +9,11 @@ const InstallButton = dynamic(()=> import('../components/InstallButton'), { ssr:
 
 const TEAM_NAME = 'Lakeshore Indivisible — Sheboygan'
 
+const today = todayISO();
+function alreadyDone(p: Prompt){
+  return actions.some(a => a.date === today && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
+}
+
 const CATS = [
   { id: 'civic', label: 'Civic' },
   { id: 'mutual_aid', label: 'Mutual Aid' },
@@ -122,8 +127,13 @@ export default function Home(){
             {prompts.map((p, i)=> (
               <li key={i} style={{padding:'10px 0', borderBottom:'1px solid #e2e8f0'}}>
                 <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                  <div style={{flex:1}}>{p.text} {p.link ? <a className="small" href={p.link} target="_blank" rel="noreferrer">(link)</a> : null}</div>
-                  <button className="btn" onClick={()=> quickFill(p)}>Log this</button>
+                  <div style={{flex:1, opacity: alreadyDone(p) ? 0.5 : 1}}>
+                    {p.text} {p.link ? <a className="small" href={p.link} target="_blank" rel="noreferrer">(link)</a> : null}
+                    {alreadyDone(p) ? <span className="small" style={{marginLeft:8}}>(logged today)</span> : null}
+                  </div>
+                  <button className="btn" onClick={()=> quickFill(p)} disabled={alreadyDone(p)} style={{opacity: alreadyDone(p) ? 0.6 : 1, cursor: alreadyDone(p) ? 'not-allowed' : 'pointer'}}>
+                    {alreadyDone(p) ? 'Logged' : 'Log this'}
+                  </button>
                 </div>
               </li>
             ))}

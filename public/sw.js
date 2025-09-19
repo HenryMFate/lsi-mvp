@@ -1,4 +1,4 @@
-const CACHE = 'ma-v4'; // bump this when you deploy
+const CACHE = 'ma-v5'; // bump this when you deploy
 
 self.addEventListener('install', (e) => {
   self.skipWaiting(); // activate the new SW immediately
