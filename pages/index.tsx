@@ -9,11 +9,6 @@ const InstallButton = dynamic(()=> import('../components/InstallButton'), { ssr:
 
 const TEAM_NAME = 'Lakeshore Indivisible — Sheboygan'
 
-const today = todayISO();
-function alreadyDone(p: Prompt){
-  return actions.some(a => a.date === today && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
-}
-
 const CATS = [
   { id: 'civic', label: 'Civic' },
   { id: 'mutual_aid', label: 'Mutual Aid' },
@@ -28,6 +23,11 @@ export default function Home(){
   const [name, setName] = useState('')
   const [zip, setZip] = useState('')
   const [actions, setActions] = useState<Action[]>([])
+const today = todayISO();
+function alreadyDone(p: Prompt){
+  return actions.some(a => a.date === today && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
+}
+
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [draft, setDraft] = useState<Action>({ id: '', date: todayISO(), category: 'civic', minutes: 5 })
   const [toast, setToast] = useState<string | null>(null)
