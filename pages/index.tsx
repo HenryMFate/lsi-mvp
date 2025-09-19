@@ -1,8 +1,11 @@
+import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
 import { Action, loadLocal, saveLocal, streak, todayISO, uuid } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { getDailyPrompts, Prompt } from '../lib/prompts'
 import { getLevelDetailed, streakMessage } from '../lib/encouragement'
+
+const InstallButton = dynamic(()=> import('../components/InstallButton'), { ssr:false })
 
 const TEAM_NAME = 'Lakeshore Indivisible — Sheboygan'
 
@@ -27,7 +30,12 @@ export default function Home(){
   useEffect(()=> { setActions(loadLocal()) }, [])
   useEffect(()=> { saveLocal(actions) }, [actions])
 
-  useEffect(()=>{ setPrompts(getDailyPrompts(new Date(), zip || '53081', 3)) }, [zip])
+  useEffect(()=>{
+    (async()=>{
+      const list = await getDailyPrompts(new Date(), zip || '53081', 3);
+      setPrompts(list);
+    })();
+  }, [zip])
 
   useEffect(()=>{
     (async()=>{
@@ -78,6 +86,8 @@ export default function Home(){
         <h1 style={{fontWeight:700}}>Micro‑Actions</h1>
         <div className="brand" title={TEAM_NAME}><span className="brand-dot"/><span>{TEAM_NAME}</span></div>
       </div>
+
+      <div style={{marginTop:8}}><InstallButton /></div>
 
       <div className="row" style={{marginTop:12}}>
         <div className="card span2">
@@ -177,8 +187,9 @@ export default function Home(){
 
 function label(id: string){ return (CATS as any).find((c:any)=>c.id===id)?.label || id }
 function getOrSetAnonId(){ const k = 'ma_anon_id'; let v = localStorage.getItem(k); if (!v){ v = crypto.randomUUID(); localStorage.setItem(k, v);} return v; }
-function actionToRow(a: Action, zip?: string){
+type AnyAction = import('../lib/storage').Action;
+function actionToRow(a: AnyAction, zip?: string){
   return { id: a.id, anon_id: getOrSetAnonId(), date: a.date, category: a.category, description: a.description||null, minutes: a.minutes||null, with_friend: !!a.withFriend, zip: zip||null };
 }
-function rowToAction(r: any): Action { return { id: r.id, date: r.date, category: r.category, description: r.description||undefined, minutes: r.minutes||undefined, withFriend: r.with_friend||false } }
-function mergeUnique(local: Action[], cloud: Action[]): Action[] { const map = new Map<string, Action>(); [...cloud, ...local].forEach(a=> map.set(a.id, a)); return Array.from(map.values()).sort((a,b)=> (a.date<b.date?1:-1)); }
+function rowToAction(r: any): AnyAction { return { id: r.id, date: r.date, category: r.category, description: r.description||undefined, minutes: r.minutes||undefined, withFriend: r.with_friend||false } }
+function mergeUnique(local: AnyAction[], cloud: AnyAction[]): AnyAction[] { const map = new Map<string, AnyAction>(); [...cloud, ...local].forEach(a=> map.set(a.id, a)); return Array.from(map.values()).sort((a,b)=> (a.date<b.date?1:-1)); }
