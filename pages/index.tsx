@@ -128,14 +128,21 @@ function alreadyDone(p: Prompt){
         <h3>Today’s Prompts</h3>
         {prompts.length===0 ? <p className="small">Enter a ZIP to see local prompts.</p> : (
           <ul style={{listStyle:'none', padding:0, margin:0}}>
-            {prompts.map((p, i)=> (
+            {prompts.map((p, i)=> {
+              const done = actions.some(a => a.date === todayISO() && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
+              return (
               <li key={i} style={{padding:'10px 0', borderBottom:'1px solid #e2e8f0'}}>
                 <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                  <div style={{flex:1, opacity: alreadyDone(p) ? 0.5 : 1}}>
+                  <div style={{flex:1, opacity: done ? 0.5 : 1}}>
                     {p.text} {p.link ? <a className="small" href={p.link} target="_blank" rel="noreferrer">(link)</a> : null}
-                    {alreadyDone(p) ? <span className="small" style={{marginLeft:8}}>(logged today)</span> : null}
+                    {done ? <span className="small" style={{marginLeft:8}}>(logged today)</span> : null}
                   </div>
-                  <button className="btn" onClick={()=> quickFill(p)} disabled={alreadyDone(p)} style={{opacity: alreadyDone(p) ? 0.6 : 1, cursor: alreadyDone(p) ? 'not-allowed' : 'pointer'}}>
+                  <button className="btn" onClick={()=> quickFill(p)} disabled={done} style={{opacity: done ? 0.6 : 1, cursor: done ? 'not-allowed' : 'pointer'}}>
+                    {done ? 'Logged' : 'Log this'}
+                  </button>
+                </div>
+              </li>)
+            })} disabled={alreadyDone(p)} style={{opacity: alreadyDone(p) ? 0.6 : 1, cursor: alreadyDone(p) ? 'not-allowed' : 'pointer'}}>
                     {alreadyDone(p) ? 'Logged' : 'Log this'}
                   </button>
                 </div>
