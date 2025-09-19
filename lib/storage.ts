@@ -1,20 +1,14 @@
 export type Action = {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string;
   category: 'civic'|'mutual_aid'|'environment'|'bridging'|'reflection';
   description?: string;
   minutes?: number;
   withFriend?: boolean;
 };
-
 const KEY = 'ma_actions_v1';
-
-export function loadLocal(): Action[] {
-  try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; }
-}
-export function saveLocal(actions: Action[]) {
-  localStorage.setItem(KEY, JSON.stringify(actions));
-}
+export function loadLocal(): Action[] { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } }
+export function saveLocal(actions: Action[]){ localStorage.setItem(KEY, JSON.stringify(actions)); }
 export function todayISO(){ return new Date().toISOString().slice(0,10); }
 export function uuid(){ return (crypto as any).randomUUID?.() || Math.random().toString(36).slice(2); }
 export function streak(actions: Action[]): number {

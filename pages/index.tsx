@@ -2,7 +2,7 @@ import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useState } from 'react'
 import { Action, loadLocal, saveLocal, streak, todayISO, uuid } from '../lib/storage'
 import { supabase } from '../lib/supabase'
-import { getDailyPrompts, Prompt } from '../lib/prompts'
+import { getDailyPromptsSplit, Prompt } from '../lib/prompts'
 import { getLevelDetailed, streakMessage } from '../lib/encouragement'
 
 const InstallButton = dynamic(()=> import('../components/InstallButton'), { ssr:false })
@@ -23,7 +23,8 @@ export default function Home(){
   const [name, setName] = useState('')
   const [zip, setZip] = useState('')
   const [actions, setActions] = useState<Action[]>([])
-  const [prompts, setPrompts] = useState<Prompt[]>([])
+  const [orgPrompt, setOrgPrompt] = useState<Prompt | null>(null)
+  const [genPrompts, setGenPrompts] = useState<Prompt[]>([])
   const [draft, setDraft] = useState<Action>({ id: '', date: todayISO(), category: 'civic', minutes: 5 })
   const [toast, setToast] = useState<string | null>(null)
 
@@ -32,8 +33,8 @@ export default function Home(){
 
   useEffect(()=>{
     (async()=>{
-      const list = await getDailyPrompts(new Date(), zip || '53081', 3);
-      setPrompts(list);
+      const split = await getDailyPromptsSplit(new Date(), getOrSetAnonId(), 3);
+      setOrgPrompt(split.org); setGenPrompts(split.general);
     })();
   }, [zip])
 
@@ -80,6 +81,42 @@ export default function Home(){
   const cur = Math.max(0, Math.min(span, totals.count - prev))
   const pct = Math.round((cur/span)*100)
 
+  async function enableDailyReminder(){
+    try {
+      if (!('Notification' in window)) { alert('Notifications not supported on this device'); return; }
+      let perm = Notification.permission;
+      if (perm !== 'granted') {
+        perm = await Notification.requestPermission();
+      }
+      if (perm !== 'granted') { alert('Notifications are blocked. Enable them in browser settings.'); return; }
+      const targetHour = 19; // 7pm
+      const now = new Date();
+      const next = new Date();
+      next.setHours(targetHour, 0, 0, 0);
+      if (next <= now) next.setDate(next.getDate()+1);
+      const ms = next.getTime() - now.getTime();
+      const fire = async () => {
+        try {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg && reg.showNotification) {
+            reg.showNotification('LSI Micro Actions', { body: "Don’t forget today’s action!", icon: '/icon-192.png', badge: '/icon-192.png' });
+          } else {
+            new Notification('LSI Micro Actions', { body: "Don’t forget today’s action!" });
+          }
+        } catch {}
+      };
+      setTimeout(async () => {
+        await fire();
+        const again = 24*60*60*1000;
+        setInterval(fire, again);
+      }, ms);
+      setToast('Daily reminder scheduled ✅'); setTimeout(()=> setToast(null), 2000);
+    } catch (e) {
+      console.warn('Notification enable failed', e);
+      setToast('Could not enable notifications'); setTimeout(()=> setToast(null), 2000);
+    }
+  }
+
   return (
     <div className="container">
       <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:24}}>
@@ -90,6 +127,10 @@ export default function Home(){
       <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', gap:8}}>
         <div className="brand" title={TEAM_NAME}><span className="brand-dot"/><span>{TEAM_NAME}</span></div>
         <div><InstallButton /></div>
+      </div>
+      <div style={{display:'flex', gap:8, alignItems:'center', marginTop:8}}>
+        <button className="btn" onClick={enableDailyReminder}>Enable Daily Reminder</button>
+        <span className="small">Daily reminder around 7pm while the app is open.</span>
       </div>
 
       <div className="row" style={{marginTop:12}}>
@@ -120,25 +161,53 @@ export default function Home(){
 
       <div className="card" style={{marginTop:12}}>
         <h3>Today’s Prompts</h3>
-        {prompts.length===0 ? <p className="small">Enter a ZIP to see local prompts.</p> : (
-          <ul style={{listStyle:'none', padding:0, margin:0}}>
-            {prompts.map((p, i)=> {
-              const done = actions.some(a => a.date === todayISO() && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
-              return (
-              <li key={i} style={{padding:'10px 0', borderBottom:'1px solid #e2e8f0'}}>
-                <div style={{display:'flex', gap:8, alignItems:'center'}}>
-                  <div style={{flex:1, opacity: done ? 0.5 : 1}}>
-                    {p.text} {p.link ? <a className="small" href={p.link} target="_blank" rel="noreferrer">(link)</a> : null}
-                    {done ? <span className="small" style={{marginLeft:8}}>(logged today)</span> : null}
+
+        <div style={{marginBottom:12}}>
+          <div className="badge" style={{marginBottom:8}}>🌟 Lakeshore Indivisible Immediate Action</div>
+          {!orgPrompt ? <p className="small">No special action today. Check back tomorrow.</p> : (
+            <ul style={{listStyle:'none', padding:0, margin:0}}>
+              {[orgPrompt].map((p, i)=> {
+                const done = actions.some(a => a.date === todayISO() && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
+                return (
+                <li key={'org_'+i} style={{padding:'10px 0', borderBottom:'1px solid #e2e8f0'}}>
+                  <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                    <div style={{flex:1, opacity: done ? 0.5 : 1}}>
+                      {p.text} {p.link ? <a className="small" href={p.link} target="_blank" rel="noreferrer">(link)</a> : null}
+                      {done ? <span className="small" style={{marginLeft:8}}>(logged today)</span> : null}
+                    </div>
+                    <button className="btn" onClick={()=> quickFill(p)} disabled={done} style={{opacity: done ? 0.6 : 1, cursor: done ? 'not-allowed' : 'pointer'}}>
+                      {done ? 'Logged' : 'Log this'}
+                    </button>
                   </div>
-                  <button className="btn" onClick={()=> quickFill(p)} disabled={done} style={{opacity: done ? 0.6 : 1, cursor: done ? 'not-allowed' : 'pointer'}}>
-                    {done ? 'Logged' : 'Log this'}
-                  </button>
-                </div>
-              </li>)
-            })}
-          </ul>
-        )}
+                </li>)
+              })}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <div className="badge" style={{marginBottom:8}}>🌱 Additional Daily Prompts</div>
+          {genPrompts.length===0 ? <p className="small">No additional prompts today.</p> : (
+            <ul style={{listStyle:'none', padding:0, margin:0}}>
+              {genPrompts.map((p, i)=> {
+                const done = actions.some(a => a.date === todayISO() && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase());
+                return (
+                <li key={'gen_'+i} style={{padding:'10px 0', borderBottom:'1px solid #e2e8f0'}}>
+                  <div style={{display:'flex', gap:8, alignItems:'center'}}>
+                    <div style={{flex:1, opacity: done ? 0.5 : 1}}>
+                      {p.text} {p.link ? <a className="small" href={p.link} target="_blank" rel="noreferrer">(link)</a> : null}
+                      {done ? <span className="small" style={{marginLeft:8}}>(logged today)</span> : null}
+                    </div>
+                    <button className="btn" onClick={()=> quickFill(p)} disabled={done} style={{opacity: done ? 0.6 : 1, cursor: done ? 'not-allowed' : 'pointer'}}>
+                      {done ? 'Logged' : 'Log this'}
+                    </button>
+                  </div>
+                </li>)
+              })}
+            </ul>
+          )}
+        </div>
+
         <p className="small" style={{marginTop:8}}>Tip: tap “Log this” to prefill the action, then hit Add.</p>
       </div>
 
@@ -188,7 +257,6 @@ export default function Home(){
       </div>
 
       <p className="small" style={{textAlign:'center', marginTop:16}}>Install: open this site on your phone → browser menu → Add to Home Screen.</p>
-      <p className="small" style={{textAlign:'center'}}><a href="/scoreboard">Public Scoreboard</a> (anonymous ZIP totals when cloud sync is enabled)</p>
 
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>

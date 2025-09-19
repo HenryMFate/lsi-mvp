@@ -1,23 +1,24 @@
 import type { AppProps } from 'next/app'
-import Head from 'next/head'
 import '../styles/globals.css'
-import ErrorBoundary from '../components/ErrorBoundary'
+import Head from 'next/head'
 import { useEffect } from 'react'
 
-export default function MyApp({ Component, pageProps }: AppProps) {
-  useEffect(() => {
+export default function MyApp({ Component, pageProps }: AppProps){
+  useEffect(()=>{
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(()=>{});
     }
   }, []);
-  return <>
-    <Head>
-      <meta name="theme-color" content="#0f172a" />
-      <link rel="manifest" href="/manifest.json" />
-      <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-      <meta name="apple-mobile-web-app-capable" content="yes" />
-      <meta name="apple-mobile-web-app-title" content="LSI Micro Actions" />
-    </Head>
-    <ErrorBoundary><Component {...pageProps} /></ErrorBoundary>
-  </>
+
+  return (
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <title>LSI Micro Actions</title>
+      </Head>
+      <Component {...pageProps} />
+    </>
+  );
 }

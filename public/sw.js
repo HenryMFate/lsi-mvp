@@ -1,24 +1,22 @@
-const CACHE = 'ma-v8'; // bump this when you deploy
+const CACHE = 'ma-v11';
 
 self.addEventListener('install', (e) => {
-  self.skipWaiting(); // activate the new SW immediately
-  e.waitUntil(
-    caches.open(CACHE).then(cache =>
-      cache.addAll(['/', '/manifest.json'])
-    )
-  );
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/', '/manifest.json'])));
 });
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))).then(()=>self.clients.claim());
 });
 
 self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then(r => r || fetch(e.request))
-  );
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const all = await clients.matchAll({ includeUncontrolled: true, type: 'window' });
+    if (all && all.length) { all[0].focus(); } else { clients.openWindow('/'); }
+  })());
 });
