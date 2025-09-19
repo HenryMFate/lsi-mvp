@@ -64,6 +64,7 @@ export default function Admin(){
 
   async function updateRow(row: OrgPrompt){
     if (!row.id){ return }
+    if (!supabase) { alert('Supabase not configured'); return; }
     const body: any = {
       text: (row.text||'').trim(),
       link: (row.link||'') || null,
@@ -73,15 +74,16 @@ export default function Admin(){
       end_date: row.end_date || null,
       priority: Number(row.priority)||0
     }
-    const { error } = await supabase.from('org_prompts').update(body).eq('id', row.id)
+    const s = supabase!; const { error } = await s.from('org_prompts').update(body).eq('id', row.id)
     if (error){ alert(error.message); return; }
     await load()
   }
 
   async function del(id?: string){
     if (!id) return;
+    if (!supabase) { alert('Supabase not configured'); return; }
     if (!confirm('Delete this item?')) return;
-    const { error } = await supabase.from('org_prompts').delete().eq('id', id)
+    const s = supabase!; const { error } = await s.from('org_prompts').delete().eq('id', id)
     if (error){ alert(error.message); return; }
     await load()
   }
