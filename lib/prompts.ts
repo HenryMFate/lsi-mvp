@@ -1,6 +1,6 @@
 export type Prompt = { text: string; link?: string; category?: 'civic'|'mutual_aid'|'environment'|'bridging'|'reflection' }
 
-const PROMPT_CACHE_VERSION = 'v3'; // bump when logic changes
+const PROMPT_CACHE_VERSION = 'v4'; // bump when logic changes
 
 function mulberry32(a: number){ return function(){ let t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
 function seedFrom(date: Date, zip: string){ const d = Number(date.toISOString().slice(0,10).replace(/-/g,'')); const z = Number((zip||'0').replace(/\D/g,''))||0; return d ^ z }

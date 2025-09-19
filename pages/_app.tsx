@@ -1,6 +1,7 @@
 import type { AppProps } from 'next/app'
 import Head from 'next/head'
 import '../styles/globals.css'
+import ErrorBoundary from '../components/ErrorBoundary'
 import { useEffect } from 'react'
 
 export default function MyApp({ Component, pageProps }: AppProps) {
@@ -17,6 +18,6 @@ export default function MyApp({ Component, pageProps }: AppProps) {
       <meta name="apple-mobile-web-app-capable" content="yes" />
       <meta name="apple-mobile-web-app-title" content="LSI Micro Actions" />
     </Head>
-    <Component {...pageProps} />
+    <ErrorBoundary><Component {...pageProps} /></ErrorBoundary>
   </>
 }
