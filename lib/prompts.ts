@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 
 export type Prompt = { text: string; link?: string; category?: 'civic'|'mutual_aid'|'environment'|'bridging'|'reflection' }
 
-const PROMPT_CACHE_VERSION = 'v6';
+const PROMPT_CACHE_VERSION = 'v7';
 
 function mulberry32(a: number){ return function(){ let t = a += 0x6D2B79F5; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296 } }
 function hashString(s: string){ let h=2166136261>>>0; for (let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
@@ -114,27 +114,32 @@ async function recentTexts(anonId: string, today: string, days=14): Promise<Set<
   return seen;
 }
 
-export async function getDailyPromptsSplit(date: Date, anonId: string, total=3, useCsv=true): Promise<{ org: Prompt|null, general: Prompt[] }> {
+export async function getDailyPromptsSplit(date: Date, anonId: string, total=4, useCsv=true): Promise<{ org: Prompt|null, general: Prompt[] }> {
   const today = date.toISOString().slice(0,10);
   const countOrg = 1;
   const countGen = Math.max(0, total - countOrg);
 
+  // Load saved set first
   if (supabase) {
     const { data } = await supabase.from('user_daily_prompts').select('prompts').eq('day', today).eq('anon_id', anonId).maybeSingle();
     if (data && Array.isArray(data.prompts)) {
       const arr = data.prompts as Prompt[];
-      const orgPool = await fetchOrgPrompts(today);
-      const keySet = new Set(orgPool.map(keyOf));
-      const split = { org: null as Prompt|null, general: [] as Prompt[] };
-      for (const p of arr) {
-        if (!split.org && keySet.has(keyOf(p))) split.org = p; else split.general.push(p);
+      // If stored set is smaller than requested, ignore and regenerate below
+      if (arr.length >= (countOrg + countGen)) {
+        const orgPool = await fetchOrgPrompts(today);
+        const keySet = new Set(orgPool.map(keyOf));
+        const split = { org: null as Prompt|null, general: [] as Prompt[] };
+        for (const p of arr) {
+          if (!split.org && keySet.has(keyOf(p))) split.org = p; else split.general.push(p);
+        }
+        if (!split.org && split.general.length) { split.org = split.general.shift() || null; }
+        split.general = split.general.slice(0, countGen);
+        return split;
       }
-      if (!split.org && split.general.length) { split.org = split.general.shift() || null; }
-      split.general = split.general.slice(0, countGen);
-      return split;
     }
   }
 
+  // Fresh generation path
   const [orgPool, generalDb] = await Promise.all([fetchOrgPrompts(today), fetchGeneralPrompts()]);
   const csvPool = useCsv ? await loadCsv() : [];
   const generalPool = (generalDb.length ? generalDb : csvPool);

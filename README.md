@@ -1,22 +1,28 @@
-# LSI Micro Actions (Full ZIP v13)
+# LSI Micro Actions — Full Build v14
 
-## What’s in this build
-- 1 **Lakeshore Indivisible Immediate Action** + **2–3 general prompts** per day (configurable)
-- Different set per user/day, no repeats for 14 days, stable via Supabase `user_daily_prompts`
-- Recent actions shows **last 10** at bottom
-- **Admin page** at `/admin` (password via `NEXT_PUBLIC_ADMIN_PASS`) to add/edit/delete org prompts
-- Local notification option (7pm) without Firebase
-- Service worker v13 for cache busting
+## Highlights
+- 1 **Lakeshore Indivisible Immediate Action** + **3 general prompts** per day  
+  (configurable: `NEXT_PUBLIC_GEN_COUNT` = `2` or `3`, default `3`)
+- **Different per user/day**, avoids repeats (14‑day lookback)
+- **Auto-regenerate** if stored set smaller than requested (handles prompt-count changes)
+- **Recent Actions** shows **last 10** at bottom
+- **Admin page** (`/admin`) to add/edit/delete org prompts (password with `NEXT_PUBLIC_ADMIN_PASS`)
+- **Daily Complete** modal with confetti + sound + share button
+- **Streak awards**: first time you beat your best; then only at **multiples of 10**
+- **HouseBlocks** progress visual
+- PWA icons, manifest, **service worker v14**
 
 ## Deploy (Vercel)
-1. Create a new GitHub repo and upload these files, or replace your existing repo and commit.
-2. In Vercel → **New Project** (or existing) → set **Framework = Next.js**.
-3. Environment Variables (Production):
+1. Upload this folder to a GitHub repo and import to Vercel as a Next.js app.
+2. Environment Variables (Production):
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `NEXT_PUBLIC_ADMIN_PASS` (for /admin page)
-   - *(optional)* `NEXT_PUBLIC_GEN_COUNT` = `2` or `3` (defaults to 3)
-4. Deploy. After deploy, visit: `https://your-url/?v=13`
+   - `NEXT_PUBLIC_ADMIN_PASS` (for /admin)
+   - *(optional)* `NEXT_PUBLIC_GEN_COUNT` = `2` or `3`
+3. Deploy, then open:
+   ```
+   https://YOUR-URL/?v=14
+   ```
 
 ## Supabase SQL (run once)
 ```sql
@@ -73,18 +79,4 @@ do $$ begin
     create policy "org_delete" on public.org_prompts for delete using (true);
   end if;
 end $$;
-```
-
-## Admin
-- Go to `https://your-url/admin`
-- Enter password from `NEXT_PUBLIC_ADMIN_PASS`
-- Add/edit/delete org prompts. **Active + date range** control visibility.
-
-## Icons
-Place your final icons at `public/icon-192.png` and `public/icon-512.png` (already included).
-
-## Cache busting
-Service worker version is set to `ma-v13`. After deploy, open:
-```
-https://your-url/?v=13
 ```

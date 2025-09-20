@@ -1,5 +1,5 @@
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Action, loadLocal, saveLocal, streak, todayISO, uuid } from '../lib/storage'
 import { supabase } from '../lib/supabase'
 import { getDailyPromptsSplit, Prompt } from '../lib/prompts'
@@ -27,6 +27,11 @@ export default function Home(){
   const [genPrompts, setGenPrompts] = useState<Prompt[]>([])
   const [draft, setDraft] = useState<Action>({ id: '', date: todayISO(), category: 'civic', minutes: 5 })
   const [toast, setToast] = useState<string | null>(null)
+  const [celebrateOpen, setCelebrateOpen] = useState(false)
+  const [streakAwardOpen, setStreakAwardOpen] = useState(false)
+  const [streakAwardText, setStreakAwardText] = useState('')
+
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(()=> { setActions(loadLocal()) }, [])
   useEffect(()=> { saveLocal(actions) }, [actions])
@@ -81,13 +86,48 @@ export default function Home(){
   const cur = Math.max(0, Math.min(span, totals.count - prev))
   const pct = Math.round((cur/span)*100)
 
+  // Personal Best Streak awards
+  useEffect(()=>{
+    const bestKey = 'ma_best_streak';
+    const lastAwardKey = 'ma_last_best_award_value';
+    const prevBest = Number(localStorage.getItem(bestKey) || '0');
+    const lastAwardVal = Number(localStorage.getItem(lastAwardKey) || '0');
+    const s = totals.streak;
+
+    if (s > prevBest){
+      // Celebrate the first beat; after that, only at multiples of 10
+      const shouldCelebrate = (prevBest === 0) || (s % 10 === 0 && s !== lastAwardVal);
+      localStorage.setItem(bestKey, String(s));
+      if (shouldCelebrate){
+        localStorage.setItem(lastAwardKey, String(s));
+        const label = (s % 50 === 0) ? 'Legendary Streak' : (s % 20 === 0) ? 'Epic Streak' : (s % 10 === 0) ? 'Milestone Streak' : 'Personal Best';
+        setStreakAwardText(`${label}: ${s} days! 🔥`);
+        setStreakAwardOpen(true);
+        try { audioRef.current?.play().catch(()=>{}); } catch {}
+      }
+    }
+  }, [totals.streak]);
+
+  // Celebrate when all today's prompts are logged (once per day)
+  useEffect(()=>{
+    const today = todayISO();
+    const key = `ma_daily_complete_${today}`;
+    if ((orgPrompt || genPrompts.length) && actions.length){
+      const orgDone = orgPrompt ? actions.some(a => a.date===today && (a.description||'').trim().toLowerCase() === orgPrompt.text.trim().toLowerCase()) : true;
+      const gensDone = genPrompts.every(p => actions.some(a => a.date===today && (a.description||'').trim().toLowerCase() === p.text.trim().toLowerCase()));
+      if (orgDone && gensDone && !localStorage.getItem(key)){
+        localStorage.setItem(key, '1');
+        setCelebrateOpen(true);
+        try { audioRef.current?.play().catch(()=>{}); } catch {}
+      }
+    }
+  }, [actions, orgPrompt, genPrompts]);
+
   async function enableDailyReminder(){
     try {
       if (!('Notification' in window)) { alert('Notifications not supported on this device'); return; }
       let perm = Notification.permission;
-      if (perm !== 'granted') {
-        perm = await Notification.requestPermission();
-      }
+      if (perm !== 'granted') { perm = await Notification.requestPermission(); }
       if (perm !== 'granted') { alert('Notifications are blocked. Enable them in browser settings.'); return; }
       const targetHour = 19; // 7pm
       const now = new Date();
@@ -117,8 +157,23 @@ export default function Home(){
     }
   }
 
+  function shareWin(){
+    const url = typeof window !== 'undefined' ? window.location.origin : '';
+    const text = `I completed all my LSI Micro Actions today! 💚 Join me: ${url}`;
+    if (navigator.share){
+      navigator.share({ title: 'LSI Micro Actions', text, url }).catch(()=>{});
+    } else if (navigator.clipboard){
+      navigator.clipboard.writeText(text).then(()=>{
+        setToast('Share text copied!'); setTimeout(()=> setToast(null), 2000);
+      }).catch(()=>{});
+    } else {
+      alert(text);
+    }
+  }
+
   return (
     <div className="container">
+      <audio ref={audioRef} src="/celebrate.wav" preload="auto" />
       <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:24}}>
         <img src="/icon-192.png" alt="LSI Logo" style={{width:48, height:48, borderRadius:8}} />
         <h1 style={{margin:0}}>LSI Micro Actions</h1>
@@ -156,6 +211,9 @@ export default function Home(){
             </div>
           </div>
           <div className="progress" style={{marginTop:8}}><span style={{width: pct + '%'}}/></div>
+          <div style={{marginTop:12}}>
+            <HouseBlocks current={Math.max(0, Math.min(10, Math.round((Math.max(1, next - prev || 1) ? (totals.count - prev) : 0) / Math.max(1, next - prev || 1) * 10))) } span={Math.max(1, next - prev || 1)} />
+          </div>
         </div>
       </div>
 
@@ -258,6 +316,39 @@ export default function Home(){
 
       <p className="small" style={{textAlign:'center', marginTop:16}}>Install: open this site on your phone → browser menu → Add to Home Screen.</p>
 
+      {streakAwardOpen ? (
+        <div className="modal-backdrop" onClick={()=> setStreakAwardOpen(false)}>
+          <div className="modal" onClick={(e)=> e.stopPropagation()}>
+            <ConfettiCanvas key="confetti-streak" />
+            <div style={{display:'flex', alignItems:'center', gap:12}}>
+              <img src="/icon-192.png" alt="Badge" style={{width:48, height:48, borderRadius:8}}/>
+              <h2 style={{margin:0}}>New Personal Best! 🏆</h2>
+            </div>
+            <p className="small" style={{marginTop:8}}>{streakAwardText}</p>
+            <div style={{display:'flex', gap:8, marginTop:12}}>
+              <button className="btn" onClick={()=> setStreakAwardOpen(false)}>Keep it going</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {celebrateOpen ? (
+        <div className="modal-backdrop" onClick={()=> setCelebrateOpen(false)}>
+          <div className="modal" onClick={(e)=> e.stopPropagation()}>
+            <ConfettiCanvas key="confetti" />
+            <div style={{display:'flex', alignItems:'center', gap:12}}>
+              <img src="/icon-192.png" alt="Badge" style={{width:48, height:48, borderRadius:8}}/>
+              <h2 style={{margin:0}}>Daily Complete! 🎉</h2>
+            </div>
+            <p className="small" style={{marginTop:8}}>You completed all prompts today. Sheboygan thanks you!</p>
+            <div style={{display:'flex', gap:8, marginTop:12}}>
+              <button className="btn" onClick={()=> setCelebrateOpen(false)}>Awesome</button>
+              <button className="btn" onClick={shareWin}>Share</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {toast ? <div className="toast" role="status">{toast}</div> : null}
     </div>
   )
@@ -271,3 +362,88 @@ function actionToRow(a: AnyAction, zip?: string){
 }
 function rowToAction(r: any): AnyAction { return { id: r.id, date: r.date, category: r.category, description: r.description||undefined, minutes: r.minutes||undefined, withFriend: r.with_friend||false } }
 function mergeUnique(local: AnyAction[], cloud: AnyAction[]): AnyAction[] { const map = new Map<string, AnyAction>(); [...cloud, ...local].forEach(a=> map.set(a.id, a)); return Array.from(map.values()).sort((a,b)=> (a.date<b.date?1:-1)); }
+
+function HouseBlocks({ current, span }: { current: number; span: number; }){
+  const total = 10;
+  const filled = Math.max(0, Math.min(total, current));
+  const size = 18, gap = 4;
+  const cols = 5, rows = 2;
+  const width = cols*size + (cols-1)*gap;
+  const height = rows*size + (rows-1)*gap;
+  const blocks = [];
+  for (let r=0; r<rows; r++){
+    for (let c=0; c<cols; c++){
+      const i = r*cols + c;
+      const x = c*(size+gap);
+      const y = (rows-1-r)*(size+gap);
+      const isFilled = i < filled;
+      blocks.push(<rect key={i} x={x} y={y} width={size} height={size} rx={4} ry={4} fill={isFilled? '#22c55e':'#e2e8f0'} stroke="#cbd5e1" />)
+    }
+  }
+  return (
+    <div>
+      <div className="small" style={{marginBottom:6}}>Milestone Builder</div>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Progress blocks">{blocks}</svg>
+      <div className="small" style={{marginTop:6}}>{filled} / {total} blocks toward your next level</div>
+    </div>
+  )
+}
+
+function ConfettiCanvas(){
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(()=>{
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let w = canvas.width = canvas.clientWidth;
+    let h = canvas.height = canvas.clientHeight;
+
+    const onResize = () => {
+      w = canvas.width = canvas.clientWidth;
+      h = canvas.height = canvas.clientHeight;
+    };
+    window.addEventListener('resize', onResize);
+
+    const colors = ['#22c55e','#16a34a','#10b981','#60a5fa','#f59e0b','#ef4444','#6366f1'];
+    const parts = Array.from({length: 180}).map(()=> ({
+      x: Math.random()*w,
+      y: -20 - Math.random()*h,
+      r: 4 + Math.random()*6,
+      vy: 2 + Math.random()*3,
+      vx: -2 + Math.random()*4,
+      rot: Math.random()*Math.PI,
+      vr: -0.1 + Math.random()*0.2,
+      color: colors[Math.floor(Math.random()*colors.length)]
+    }));
+
+    let raf = 0;
+    const start = performance.now();
+    const duration = 3500;
+
+    const tick = (t:number) => {
+      const elapsed = t - start;
+      ctx.clearRect(0,0,w,h);
+      for (const p of parts){
+        p.vy += 0.02;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+        if (p.y > h + 20) { p.y = -20; p.x = Math.random()*w; p.vy = 2 + Math.random()*3; }
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2);
+        ctx.restore();
+      }
+      if (elapsed < duration) { raf = requestAnimationFrame(tick); }
+    };
+    raf = requestAnimationFrame(tick);
+
+    return ()=> { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); }
+  }, []);
+
+  return <canvas className="confetti" ref={canvasRef} />
+}

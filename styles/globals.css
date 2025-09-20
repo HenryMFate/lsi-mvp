@@ -17,7 +17,12 @@ body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI
 .progress > span { display:block; height:100%; background:#22c55e; border-radius:999px; }
 .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:24px; background:#0f172a; color:#fff; padding:10px 14px; border-radius:12px; box-shadow:0 6px 20px rgba(0,0,0,.2); }
 
-/* Overflow fixes */
+/* Modal & Confetti */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 1000; }
+.modal { position: relative; background: #fff; border-radius: 16px; padding: 20px; width: min(520px, 95vw); box-shadow: 0 10px 30px rgba(0,0,0,.3); overflow: hidden; }
+canvas.confetti { position:absolute; inset:0; pointer-events:none; }
+
+/* Overflow fixes so inputs don't exceed cards */
 *, *::before, *::after { box-sizing: border-box; }
 .card { overflow: hidden; }
 .row > * { min-width: 0; }
