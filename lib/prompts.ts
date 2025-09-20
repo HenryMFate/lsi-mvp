@@ -73,8 +73,9 @@ async function fetchOrgPrompts(today: string): Promise<Prompt[]> {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from('org_prompts')
-    .select('text, link, category, active, start_date, end_date')
-    .eq('active', true);
+    .select('text, link, category, active, start_date, end_date, priority')
+    .eq('active', true)
+    .order('priority', { ascending: false });
   if (error || !data) return [];
   return (data as any[]).filter(row => {
     const s = row.start_date ? String(row.start_date) : null;

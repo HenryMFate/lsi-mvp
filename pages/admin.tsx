@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Head from 'next/head'
 import { supabase } from '../lib/supabase'
 
@@ -45,7 +45,7 @@ export default function Admin(){
   useEffect(()=>{ if (ok) load() }, [ok])
 
   async function saveNew(){
-    if (!supabase) return;
+    if (!supabase) { alert('Supabase not configured'); return; }
     const body: any = {
       text: (draft.text||'').trim(),
       link: draft.link?.trim() || null,
@@ -56,7 +56,8 @@ export default function Admin(){
       priority: Number(draft.priority)||0
     }
     if (!body.text){ alert('Text is required'); return; }
-    const { error } = await supabase.from('org_prompts').insert(body)
+    const s = supabase!;
+    const { error } = await s.from('org_prompts').insert(body)
     if (error) { alert(error.message); return; }
     setDraft({ text: '', link: '', category: 'civic', active: true, start_date: '', end_date: '', priority: 0 })
     await load()
@@ -74,7 +75,8 @@ export default function Admin(){
       end_date: row.end_date || null,
       priority: Number(row.priority)||0
     }
-    const s = supabase!; const { error } = await s.from('org_prompts').update(body).eq('id', row.id)
+    const s = supabase!;
+    const { error } = await s.from('org_prompts').update(body).eq('id', row.id)
     if (error){ alert(error.message); return; }
     await load()
   }
@@ -83,7 +85,8 @@ export default function Admin(){
     if (!id) return;
     if (!supabase) { alert('Supabase not configured'); return; }
     if (!confirm('Delete this item?')) return;
-    const s = supabase!; const { error } = await s.from('org_prompts').delete().eq('id', id)
+    const s = supabase!;
+    const { error } = await s.from('org_prompts').delete().eq('id', id)
     if (error){ alert(error.message); return; }
     await load()
   }

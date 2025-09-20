@@ -6,7 +6,7 @@ import { getDailyPromptsSplit, Prompt } from '../lib/prompts'
 import { getLevelDetailed, streakMessage } from '../lib/encouragement'
 
 const InstallButton = dynamic(()=> import('../components/InstallButton'), { ssr:false })
-
+const GEN_COUNT = parseInt(process.env.NEXT_PUBLIC_GEN_COUNT || '3', 10)
 const TEAM_NAME = 'Lakeshore Indivisible — Sheboygan'
 
 const CATS = [
@@ -33,7 +33,7 @@ export default function Home(){
 
   useEffect(()=>{
     (async()=>{
-      const split = await getDailyPromptsSplit(new Date(), getOrSetAnonId(), 3);
+      const split = await getDailyPromptsSplit(new Date(), getOrSetAnonId(), 1 + Math.max(2, Math.min(3, GEN_COUNT)));
       setOrgPrompt(split.org); setGenPrompts(split.general);
     })();
   }, [zip])
@@ -242,7 +242,7 @@ export default function Home(){
         <h3>Your Recent Actions</h3>
         {actions.length===0 ? <p className="small">No actions yet. Log your first one above — it takes 20 seconds.</p> : (
           <ul style={{listStyle:'none', padding:0, margin:0}}>
-            {actions.map(a=> (
+            {actions.slice(0,10).map(a=> (
               <li key={a.id} style={{display:'flex', gap:12, padding:'10px 0', borderBottom:'1px solid #e2e8f0'}}>
                 <div className="small" style={{width:84, flexShrink:0}}>{a.date}</div>
                 <div style={{flex:1}}>
