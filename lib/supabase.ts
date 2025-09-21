@@ -1,4 +1,16 @@
-import { createClient } from '@supabase/supabase-js';
-export const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-export const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-export const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+// lib/supabase.ts
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+
+let client: SupabaseClient | null = null;
+
+export function getSupabase(): SupabaseClient {
+  if (!client) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    if (!url || !key) {
+      throw new Error('Supabase URL or Key missing. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+    }
+    client = createClient(url, key);
+  }
+  return client;
+}
