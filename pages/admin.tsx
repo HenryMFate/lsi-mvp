@@ -6,7 +6,6 @@ type OrgPrompt = { id:number; text:string; priority:'high'|'low'; target_day:str
 export default function Admin(){
   if (typeof window !== 'undefined' && !localStorage.getItem('admin_ok')){ window.location.href='/admin-login'; return null as any; }
   const sb = getSupabase()
-  const [pass, setPass] = useState('')
   const [lead, setLead] = useState<number>(7)
   const [text, setText] = useState('')
   const [priority, setPriority] = useState<'high'|'low'>('low')
@@ -14,7 +13,7 @@ export default function Admin(){
   const [leadDays, setLeadDays] = useState<number>(7)
   const [rows, setRows] = useState<OrgPrompt[]>([])
 
-  function ok(){ return pass === (process.env.NEXT_PUBLIC_ADMIN_PASS || '') }
+  function ok(){ return typeof window !== 'undefined' && !!localStorage.getItem('admin_ok') }
 
   async function load(){
     const { data: s } = await sb.from('app_settings').select('*').eq('key','lsi_lead_days').maybeSingle()

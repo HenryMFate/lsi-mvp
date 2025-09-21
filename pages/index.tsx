@@ -80,7 +80,7 @@ export default function Home(){
             <div style={{fontWeight:700}}>{prompt.text}</div>
             {prompt.link && <a className="small link" href={prompt.link} target="_blank" rel="noreferrer">Open link</a>}
           </div>
-          <div><span className="badge">{org ? 'LSI' : 'General'} · +{xp} XP</span></div>
+          <div><span className="badge">{(prompt.category || (org ? 'civic' : 'general'))} · +{xp} XP</span></div>
         </div>
         <div style={{marginTop:10}}>
           {!pending ? (
