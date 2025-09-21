@@ -39,7 +39,6 @@ export default function Home(){
 
   useEffect(()=>{
     (async()=>{
-      if () setLeadDays(Number('')||7)
 
       const { data: orgs } = await sb.from('org_prompts').select('id,text,priority,target_day,lead_days')
       const { highs, lows } = classifyOrgRows((orgs||[]) as any[], today, leadDays||7)
