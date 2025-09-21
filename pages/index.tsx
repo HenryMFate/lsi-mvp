@@ -3,6 +3,25 @@ import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
 import { generalPrompts, classifyOrgPromptsForDay, XP_VALUES } from '../lib/prompts'
 
+function classifyOrgRows(orgs:any[], todayISO:string, defaultLead:number){
+  const today = new Date(todayISO+'T00:00:00')
+  const highs:any[] = []; const lows:any[] = []
+  for (const o of orgs){
+    if (o.priority === 'high' && o.target_day){
+      const eff = typeof o.lead_days === 'number' ? o.lead_days : defaultLead
+      const target = new Date(o.target_day+'T00:00:00')
+      const start = new Date(target); start.setDate(start.getDate()-eff)
+      if (today < start) { /* too early, skip */ continue }
+      if (today < target){ highs.push({ ...o, pending:true }) }
+      else if (today.toISOString().slice(0,10) === o.target_day){ highs.push({ ...o, pending:false }) }
+      // if after target day, omit
+    } else {
+      lows.push(o)
+    }
+  }
+  return { highs, lows }
+}
+
 export default function Home(){
   const sb = getSupabase();
   const [today, setToday] = useState<string>(new Date().toISOString().slice(0,10))
@@ -24,8 +43,8 @@ export default function Home(){
     (async()=>{
       const { data: s } = await sb.from('app_settings').select('*').eq('key','lsi_lead_days').maybeSingle()
       if (s?.value) setLeadDays(Number(s.value)||7)
-      const { data: orgs } = await sb.from('org_prompts').select('id,text,priority,target_day')
-      const { highs, lows } = classifyOrgPromptsForDay((orgs||[]) as any[], today, leadDays||7)
+      const { data: orgs } = await sb.from('org_prompts').select('id,text,priority,target_day,lead_days')
+      const { highs, lows } = classifyOrgRows((orgs||[]) as any[], today, leadDays||7)
       const chosenHighs = highs.slice(0,3)
       const need = Math.max(0, 3-chosenHighs.length)
       const fill = (lows||[]).slice(0, need)
@@ -57,13 +76,16 @@ export default function Home(){
 
     return (
       <div className="card" style={{marginBottom:10}}>
-        <div style={{display:'flex', alignItems:'center', gap:8, justifyContent:'space-between'}}>
-          <div>
-            <div style={{fontWeight:600}}>{prompt.text}</div>
-            {prompt.link && <a className="small" href={prompt.link} target="_blank" rel="noreferrer">Open link</a>}
-          </div>
-          <div><span className="badge">{org ? 'LSI' : 'General'} · +{xp} XP</span></div>
+        <div className="header">
+        <img src="/icon-192.png" style={{width:36, height:36, borderRadius:8}}/>
+        <h1>LSI Micro Actions</h1>
+        <div className="spacer" />
+        <div className="nav">
+          <Link className="btn secondary" href="/help">Help</Link>
+          <Link className="btn secondary" href="/achievements">Achievements</Link>
+          <Link className="btn" href="/admin">Admin</Link>
         </div>
+      </div>
         <div style={{marginTop:8}}>
           {!pending ? (
             <button className="btn" onClick={()=> setOpenIdx(openIdx===idx?null:idx)}>
@@ -97,12 +119,13 @@ export default function Home(){
 
   return (
     <div className="container">
-      <div style={{display:'flex', alignItems:'center', gap:12, marginBottom:16}}>
-        <img src="/icon-192.png" style={{width:40, height:40, borderRadius:8}}/>
-        <h1 style={{margin:0}}>LSI Micro Actions</h1>
-        <div style={{marginLeft:'auto', display:'flex', gap:8}}>
-          <Link className="btn" href="/help">Help</Link>
-          <Link className="btn" href="/achievements">Achievements</Link>
+      <div className="header">
+        <img src="/icon-192.png" style={{width:36, height:36, borderRadius:8}}/>
+        <h1>LSI Micro Actions</h1>
+        <div className="spacer" />
+        <div className="nav">
+          <Link className="btn secondary" href="/help">Help</Link>
+          <Link className="btn secondary" href="/achievements">Achievements</Link>
           <Link className="btn" href="/admin">Admin</Link>
         </div>
       </div>
