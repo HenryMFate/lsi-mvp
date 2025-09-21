@@ -39,7 +39,6 @@ export default function Home(){
 
   useEffect(()=>{
     (async()=>{
-      const { data: s } = await sb.from('app_settings').select('*').eq('key','lsi_lead_days').maybeSingle()
       if (s?.value) setLeadDays(Number(s.value)||7)
 
       const { data: orgs } = await sb.from('org_prompts').select('id,text,priority,target_day,lead_days')

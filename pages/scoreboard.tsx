@@ -21,8 +21,8 @@ export default function Scoreboard(){
 
   return (
     <div className="container">
-      <h1>Community Scoreboard</h1>
-      <div className="card">
+      <h1 style={{fontSize:34, color:'#5aa6ff', textShadow:'0 0 12px rgba(90,166,255,.45)'}}>Community Scoreboard</h1>
+      <div className="card" style={{transform:'scale(1.03)', borderColor:'rgba(106,230,221,.45)'}}>
         <table style={{width:'100%', borderCollapse:'collapse'}}>
           <thead>
             <tr>

@@ -31,7 +31,7 @@ export default function Admin(){
   async function addPrompt(){
     if (!ok()) return alert('Wrong password')
     if (!text.trim()) return alert('Enter text')
-    await sb.from('org_prompts').insert({ text, priority, target_day: target || null, lead_days: leadDays })
+    const { error: insErr } = await sb.from('org_prompts').insert({  text, priority, target_day: target || null, lead_days: leadDays  }); if (insErr){ alert(insErr.message); return; }
     setText(''); setPriority('low'); setTarget('')
     await load()
   }
