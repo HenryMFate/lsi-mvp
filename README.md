@@ -6,3 +6,8 @@
 ## v24.4
 - Ensures `lib/supabase.ts` exports `getSupabase()` and all pages use it (`const sb = getSupabase();`).
 - Bumped service worker cache to `ma-v24.4` for immediate client updates.
+
+## v25 (full replacement)
+- Converts all pages to use `getSupabase()` (no nullable imports).
+- Bumps service worker cache to `ma-v25.0` for immediate client refresh.
+- Safe to drop in over any previous version >= v13.
