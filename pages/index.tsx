@@ -22,8 +22,16 @@ function classifyOrgRows(orgs:any[], todayISO:string, defaultLead:number){
 }
 
 function promptKey(p:any){ return (p.text||'').slice(0,140) }
-function loadLoggedForDay(day:string){
-  try{ return new Set(JSON.parse(localStorage.getItem('logged_'+day) || '[]')) }catch{ return new Set() }
+function loadLoggedForDay(day:string): Set<string>{
+  try {
+    const raw = JSON.parse(localStorage.getItem('logged_'+day) || '[]');
+    const arr = Array.isArray(raw) ? raw.filter((x:any)=>typeof x==='string') : [];
+    return new Set<string>(arr);
+  } catch {
+    return new Set<string>();
+  }
+}
+catch{ return new Set() }
 }
 function saveLoggedForDay(day:string, keys:Set<string>){
   localStorage.setItem('logged_'+day, JSON.stringify(Array.from(keys)))
@@ -40,7 +48,7 @@ export default function Home(){
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
   const [anonId, setAnonId] = useState<string>('')
-  useEffect(()=>{ setLoggedSet(loadLoggedForDay(today)) }, [today])
+  useEffect(()=>{ setLoggedSet(loadLoggedForDay(today) as Set<string>) }, [today])
 
   useEffect(()=>{
     const a = localStorage.getItem('anon_id')
