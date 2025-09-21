@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
-import { generalPrompts, classifyOrgPromptsForDay, XP_VALUES } from '../lib/prompts'
+import { generalPrompts, XP_VALUES } from '../lib/prompts'
 
 function classifyOrgRows(orgs:any[], todayISO:string, defaultLead:number){
   const today = new Date(todayISO+'T00:00:00')
@@ -11,10 +11,9 @@ function classifyOrgRows(orgs:any[], todayISO:string, defaultLead:number){
       const eff = typeof o.lead_days === 'number' ? o.lead_days : defaultLead
       const target = new Date(o.target_day+'T00:00:00')
       const start = new Date(target); start.setDate(start.getDate()-eff)
-      if (today < start) { /* too early, skip */ continue }
+      if (today < start) { continue }
       if (today < target){ highs.push({ ...o, pending:true }) }
       else if (today.toISOString().slice(0,10) === o.target_day){ highs.push({ ...o, pending:false }) }
-      // if after target day, omit
     } else {
       lows.push(o)
     }
@@ -24,13 +23,12 @@ function classifyOrgRows(orgs:any[], todayISO:string, defaultLead:number){
 
 export default function Home(){
   const sb = getSupabase();
-  const [today, setToday] = useState<string>(new Date().toISOString().slice(0,10))
+  const [today] = useState<string>(new Date().toISOString().slice(0,10))
   const [leadDays, setLeadDays] = useState<number>(7)
   const [orgThree, setOrgThree] = useState<any[]>([])
   const [genThree, setGenThree] = useState<any[]>([])
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
-  const [weekly, setWeekly] = useState<any>(null)
   const [anonId, setAnonId] = useState<string>('')
 
   useEffect(()=>{
@@ -43,17 +41,18 @@ export default function Home(){
     (async()=>{
       const { data: s } = await sb.from('app_settings').select('*').eq('key','lsi_lead_days').maybeSingle()
       if (s?.value) setLeadDays(Number(s.value)||7)
+
       const { data: orgs } = await sb.from('org_prompts').select('id,text,priority,target_day,lead_days')
       const { highs, lows } = classifyOrgRows((orgs||[]) as any[], today, leadDays||7)
       const chosenHighs = highs.slice(0,3)
       const need = Math.max(0, 3-chosenHighs.length)
       const fill = (lows||[]).slice(0, need)
       setOrgThree([...chosenHighs, ...fill])
+
       setGenThree(generalPrompts())
+
       const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
       setDaily(d||null)
-      const { data: w } = await sb.from('community_totals_weekly').select('*').limit(1)
-      setWeekly(w && w[0] || null)
     })()
   }, [today, leadDays])
 
@@ -67,7 +66,7 @@ export default function Home(){
     alert('Nice work! +' + xp + ' XP')
   }
 
-  function PromptRow({prompt, idx, org}:{prompt:any; idx:number; org:boolean}){
+  function PromptCard({prompt, idx, org}:{prompt:any; idx:number; org:boolean}){
     const pending = !!prompt.pending
     const [minutes, setMinutes] = useState<number>(10)
     const [date, setDate] = useState<string>(today)
@@ -75,28 +74,25 @@ export default function Home(){
     const xp = org ? XP_VALUES.org : XP_VALUES.general
 
     return (
-      <div className="card" style={{marginBottom:10}}>
-        <div className="header">
-        <img src="/icon-192.png" style={{width:36, height:36, borderRadius:8}}/>
-        <h1>LSI Micro Actions</h1>
-        <div className="spacer" />
-        <div className="nav">
-          <Link className="btn secondary" href="/help">Help</Link>
-          <Link className="btn secondary" href="/achievements">Achievements</Link>
-          <Link className="btn" href="/admin">Admin</Link>
+      <div className="card">
+        <div style={{display:'flex', alignItems:'center', gap:8, justifyContent:'space-between'}}>
+          <div>
+            <div style={{fontWeight:700}}>{prompt.text}</div>
+            {prompt.link && <a className="small link" href={prompt.link} target="_blank" rel="noreferrer">Open link</a>}
+          </div>
+          <div><span className="badge">{org ? 'LSI' : 'General'} · +{xp} XP</span></div>
         </div>
-      </div>
-        <div style={{marginTop:8}}>
+        <div style={{marginTop:10}}>
           {!pending ? (
             <button className="btn" onClick={()=> setOpenIdx(openIdx===idx?null:idx)}>
               {openIdx===idx ? 'Hide' : 'Log this'}
             </button>
           ) : (
-            <span className="small" style={{color:'#9ca3af'}}>Pending until its day</span>
+            <span className="small">Pending until its day</span>
           )}
         </div>
         {openIdx===idx && !pending && (
-          <div style={{marginTop:10, borderTop:'1px solid #e5e7eb', paddingTop:10}}>
+          <div style={{marginTop:10, borderTop:'1px solid rgba(168,182,217,.25)', paddingTop:10}}>
             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:8}}>
               <label className="small">Minutes
                 <input className="input" type="number" min={1} max={240} value={minutes} onChange={e=>setMinutes(Number(e.target.value))}/>
@@ -117,6 +113,35 @@ export default function Home(){
     )
   }
 
+  // Manual "Log Your Own Action"
+  function ManualLog(){
+    const [desc, setDesc] = useState('')
+    const [minutes, setMinutes] = useState<number>(10)
+    const [date, setDate] = useState<string>(today)
+    const [withFriend, setWithFriend] = useState<boolean>(false)
+    async function submit(){
+      const body:any = { anon_id:(anonId||'').toLowerCase(), date, category:'reflection', description:desc, minutes, with_friend:withFriend, xp:XP_VALUES.general, source:'own' }
+      const { error } = await sb.from('actions').insert(body)
+      if (error){ alert(error.message); return; }
+      setDesc(''); alert('Logged your own action (+'+XP_VALUES.general+' XP)')
+    }
+    return (
+      <div className="card">
+        <h3>Log your own action</h3>
+        <div className="grid" style={{gridTemplateColumns:'1fr 140px 140px 140px'}}>
+          <input className="input" placeholder="What did you do?" value={desc} onChange={e=>setDesc(e.target.value)} />
+          <input className="input" type="number" min={1} max={240} value={minutes} onChange={e=>setMinutes(Number(e.target.value))} />
+          <input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} />
+          <label className="small" style={{display:'flex', alignItems:'center', gap:6}}>
+            <input type="checkbox" checked={withFriend} onChange={e=>setWithFriend(e.target.checked)} />
+            With others
+          </label>
+        </div>
+        <button className="btn" style={{marginTop:10}} onClick={submit}>Log (+{XP_VALUES.general} XP)</button>
+      </div>
+    )
+  }
+
   return (
     <div className="container">
       <div className="header">
@@ -129,18 +154,25 @@ export default function Home(){
           <Link className="btn" href="/admin">Admin</Link>
         </div>
       </div>
-      <div className="card" style={{marginBottom:12}}>
+
+      <div className="card">
         <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
       </div>
-      <div className="card" style={{display:'flex', alignItems:'center', gap:16, marginBottom:12}}>
+
+      <div className="card" style={{display:'flex', alignItems:'center', gap:16}}>
         <div style={{position:'relative', width:64, height:64}}>
           <svg viewBox="0 0 36 36" style={{width:64, height:64}}>
-            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#e5e7eb" strokeWidth="4"/>
-            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#22c55e" strokeWidth="4" strokeDasharray={(4*3.1416*16)} strokeDashoffset={(4*3.1416*16)*(1-((daily?.actions||0)/6))} strokeLinecap="round"/>
+            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#334155" strokeWidth="4"/>
+            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="url(#g)" strokeWidth="4" strokeDasharray={(4*3.1416*16)} strokeDashoffset={(4*3.1416*16)*(1-((daily?.actions||0)/6))} strokeLinecap="round"/>
+            <defs>
+              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="#5aa6ff" /><stop offset="100%" stopColor="#6ae6dd" />
+              </linearGradient>
+            </defs>
           </svg>
         </div>
         <div>
-          <div style={{fontWeight:700}}>Daily Progress</div>
+          <div style={{fontWeight:800}}>Daily Progress</div>
           <div className="small">{(daily?.actions||0)} of 6 actions logged today</div>
         </div>
       </div>
@@ -149,10 +181,19 @@ export default function Home(){
       {orgThree.length === 0 ? (
         <div className="card"><div className="small">No Lakeshore Indivisible actions at this time.</div></div>
       ) : (
-        orgThree.map((p, i)=> <PromptRow key={'o'+i} prompt={p} idx={i} org={true} /> )
+        <div className="row">
+          {orgThree.map((p, i)=> <PromptCard key={'o'+i} prompt={p} idx={i} org={true} /> )}
+        </div>
       )}
+
       <h3 style={{marginTop:16}}>General Actions (3)</h3>
-      {genThree.map((p, i)=> <PromptRow key={'g'+i} prompt={p} idx={100+i} org={false} /> )}
+      <div className="row">
+        {genThree.map((p, i)=> <PromptCard key={'g'+i} prompt={p} idx={100+i} org={false} /> )}
+      </div>
+
+      <div style={{marginTop:16}}>
+        <ManualLog />
+      </div>
     </div>
   )
 }
