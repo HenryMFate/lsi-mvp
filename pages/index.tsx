@@ -21,15 +21,26 @@ function classifyOrgRows(orgs:any[], todayISO:string, defaultLead:number){
   return { highs, lows }
 }
 
+function promptKey(p:any){ return (p.text||'').slice(0,140) }
+function loadLoggedForDay(day:string){
+  try{ return new Set(JSON.parse(localStorage.getItem('logged_'+day) || '[]')) }catch{ return new Set() }
+}
+function saveLoggedForDay(day:string, keys:Set<string>){
+  localStorage.setItem('logged_'+day, JSON.stringify(Array.from(keys)))
+}
+
 export default function Home(){
   const sb = getSupabase();
   const [today] = useState<string>(new Date().toISOString().slice(0,10))
   const [leadDays, setLeadDays] = useState<number>(7)
   const [orgThree, setOrgThree] = useState<any[]>([])
   const [genThree, setGenThree] = useState<any[]>([])
+  const [recent, setRecent] = useState<any[]>([])
+  const [loggedSet, setLoggedSet] = useState<Set<string>>(new Set())
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
   const [anonId, setAnonId] = useState<string>('')
+  useEffect(()=>{ setLoggedSet(loadLoggedForDay(today)) }, [today])
 
   useEffect(()=>{
     const a = localStorage.getItem('anon_id')
@@ -49,22 +60,31 @@ export default function Home(){
 
       setGenThree(generalPrompts())
 
+      const { data: rec } = await sb.from('actions').select('id,date,description,category,xp').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(10)
+      setRecent(rec||[] as any[])
+
       const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
       setDaily(d||null)
     })()
   }, [today, leadDays])
 
-  async function logAction(desc:string, category:string, minutes:number, date:string, withFriend:boolean, org:boolean){
+  async function logAction(desc:string, category:string, minutes:number, date:string, withFriend:boolean, org:boolean, p?:any){
     const xp = org ? XP_VALUES.org : XP_VALUES.general
     const body:any = { anon_id: (anonId||'').toLowerCase(), date, category, description:desc, minutes, with_friend: withFriend, xp, source:'prompt' }
     const { error } = await sb.from('actions').insert(body)
     if (error){ alert(error.message); return; }
+    // track client-side logged keys
+    if (p){ const k = promptKey(p); const next = new Set(loggedSet); next.add(k); setLoggedSet(next); saveLoggedForDay(today, next); }
+    // refresh recent
+    const { data: rec } = await sb.from('actions').select('id,date,description,category,xp').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(10)
+    setRecent(rec||[] as any[])
     const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
     setDaily(d||null)
     alert('Nice work! +' + xp + ' XP')
   }
 
   function PromptCard({prompt, idx, org}:{prompt:any; idx:number; org:boolean}){
+    const disabled = loggedSet.has(promptKey(prompt))
     const pending = !!prompt.pending
     const [minutes, setMinutes] = useState<number>(10)
     const [date, setDate] = useState<string>(today)
@@ -72,7 +92,7 @@ export default function Home(){
     const xp = org ? XP_VALUES.org : XP_VALUES.general
 
     return (
-      <div className="card">
+      <div className="card" style={{opacity: disabled? .5 : 1}}>
         <div style={{display:'flex', alignItems:'center', gap:8, justifyContent:'space-between'}}>
           <div>
             <div style={{fontWeight:700}}>{prompt.text}</div>
@@ -81,12 +101,12 @@ export default function Home(){
           <div><span className="badge">{(prompt.category || (org ? 'civic' : 'general'))} · +{xp} XP</span></div>
         </div>
         <div style={{marginTop:10}}>
-          {!pending ? (
+          {!pending && !disabled ? (
             <button className="btn" onClick={()=> setOpenIdx(openIdx===idx?null:idx)}>
               {openIdx===idx ? 'Hide' : 'Log this'}
             </button>
           ) : (
-            <span className="small">Pending until its day</span>
+            <span className="small">{pending ? 'Pending until its day' : 'Logged for today'}</span>
           )}
         </div>
         {openIdx===idx && !pending && (
@@ -102,7 +122,7 @@ export default function Home(){
                 <input type="checkbox" checked={withFriend} onChange={e=>setWithFriend(e.target.checked)}/>
               </label>
             </div>
-            <button className="btn" style={{marginTop:8}} onClick={()=>logAction(prompt.text, prompt.category|| (org?'civic':'reflection'), minutes, date, withFriend, org)}>
+            <button className="btn" style={{marginTop:8}} onClick={()=>logAction(prompt.text, prompt.category|| (org?'civic':'reflection'), minutes, date, withFriend, org, prompt)}>
               Log it (+{xp} XP)
             </button>
           </div>
@@ -121,10 +141,15 @@ export default function Home(){
       const body:any = { anon_id:(anonId||'').toLowerCase(), date, category:'reflection', description:desc, minutes, with_friend:withFriend, xp:XP_VALUES.general, source:'own' }
       const { error } = await sb.from('actions').insert(body)
       if (error){ alert(error.message); return; }
+    // track client-side logged keys
+    if (p){ const k = promptKey(p); const next = new Set(loggedSet); next.add(k); setLoggedSet(next); saveLoggedForDay(today, next); }
+    // refresh recent
+    const { data: rec } = await sb.from('actions').select('id,date,description,category,xp').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(10)
+    setRecent(rec||[] as any[])
       setDesc(''); alert('Logged your own action (+'+XP_VALUES.general+' XP)')
     }
     return (
-      <div className="card">
+      <div className="card" style={{opacity: disabled? .5 : 1}}>
         <h3>Log your own action</h3>
         <div className="grid" style={{gridTemplateColumns:'1fr 140px 140px 140px'}}>
           <input className="input" placeholder="What did you do?" value={desc} onChange={e=>setDesc(e.target.value)} />
@@ -153,18 +178,18 @@ export default function Home(){
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{opacity: disabled? .5 : 1}}>
         <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
       </div>
 
       <div className="card" style={{display:'flex', alignItems:'center', gap:16}}>
         <div style={{position:'relative', width:64, height:64}}>
           <svg viewBox="0 0 36 36" style={{width:64, height:64}}>
-            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#334155" strokeWidth="4"/>
+            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#2a3955" strokeWidth="4"/>
             <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="url(#g)" strokeWidth="4" strokeDasharray={(4*3.1416*16)} strokeDashoffset={(4*3.1416*16)*(1-((daily?.actions||0)/6))} strokeLinecap="round"/>
             <defs>
               <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#5aa6ff" /><stop offset="100%" stopColor="#6ae6dd" />
+                <stop offset="0%" stopColor="#a3ff4a" /><stop offset="100%" stopColor="#ffe75a" />
               </linearGradient>
             </defs>
           </svg>
@@ -177,7 +202,7 @@ export default function Home(){
 
       <h3>LSI Actions (3)</h3>
       {orgThree.length === 0 ? (
-        <div className="card"><div className="small">No Lakeshore Indivisible actions at this time.</div></div>
+        <div className="card" style={{opacity: disabled? .5 : 1}}><div className="small">No Lakeshore Indivisible actions at this time.</div></div>
       ) : (
         <div className="row">
           {orgThree.map((p, i)=> <PromptCard key={'o'+i} prompt={p} idx={i} org={true} /> )}
@@ -188,6 +213,32 @@ export default function Home(){
       <div className="row">
         {genThree.map((p, i)=> <PromptCard key={'g'+i} prompt={p} idx={100+i} org={false} /> )}
       </div>
+
+      <h3 style={{marginTop:16}}>Recent actions (last 10)</h3>
+<div className="card">
+  {recent.length===0 ? <div className="small">No actions yet today.</div> : (
+    <div className="table">
+      <div style={{display:'grid', gridTemplateColumns:'1fr 120px 120px 90px 80px', gap:8, padding:'6px 0', borderBottom:'1px solid rgba(168,182,217,.18)'}} className="small">
+        <div>Description</div><div>Date</div><div>Category</div><div>XP</div><div></div>
+      </div>
+      {recent.map((r:any)=>(
+        <div key={r.id} style={{display:'grid', gridTemplateColumns:'1fr 120px 120px 90px 80px', gap:8, alignItems:'center', padding:'8px 0', borderBottom:'1px solid rgba(168,182,217,.08)'}}>
+          <div>{r.description}</div>
+          <div className="small">{r.date}</div>
+          <div className="small">{r.category}</div>
+          <div className="small">{r.xp}</div>
+          <div><button className="btn secondary" onClick={async()=>{
+            if (!confirm('Delete this action?')) return;
+            const { error } = await sb.from('actions').delete().eq('id', r.id);
+            if (error){ alert(error.message); return; }
+            const next = recent.filter((x:any)=>x.id!==r.id);
+            setRecent(next);
+          }}>Delete</button></div>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
 
       <div style={{marginTop:16}}>
         <ManualLog />
