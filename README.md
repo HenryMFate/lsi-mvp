@@ -16,3 +16,7 @@
 - Service worker cache bump to `ma-v26.0` for guaranteed refresh.
 - Ensures all pages use `getSupabase()` helper.
 - Use the provided one-file SQL to initialize/update Supabase schema.
+
+
+## v28 notes
+- Requires SQL v28 to add `target_day` and relax RLS on `daily_zip_aggregates`.

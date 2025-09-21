@@ -46,13 +46,6 @@ export default function Admin(){
     <div className="container">
       <h1>Admin — Lakeshore Indivisible</h1>
       <div className="card" style={{marginBottom:12}}>
-        <h3>High-Priority Lead Days</h3>
-        <p className="small">How many days before the target date should high-priority prompts show (as Pending)?</p>
-        <input className="input" type="number" min={0} max={30} value={lead} onChange={e=>setLead(Number(e.target.value)||0)} />
-        <button className="btn" style={{marginTop:8}} onClick={saveLead}>Save</button>
-      </div>
-
-      <div className="card" style={{marginBottom:12}}>
         <h3>Add LSI Prompt</h3>
         <div style={{display:'grid', gridTemplateColumns:'1fr 120px 160px 120px 120px', gap:8}}>
           <input className="input" placeholder="Prompt text…" value={text} onChange={e=>setText(e.target.value)} />
