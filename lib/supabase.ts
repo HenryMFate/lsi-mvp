@@ -1,4 +1,4 @@
-// lib/supabase.ts (v25 authoritative)
+// lib/supabase.ts (v26 authoritative)
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;

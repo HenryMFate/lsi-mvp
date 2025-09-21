@@ -11,3 +11,8 @@
 - Converts all pages to use `getSupabase()` (no nullable imports).
 - Bumps service worker cache to `ma-v25.0` for immediate client refresh.
 - Safe to drop in over any previous version >= v13.
+
+## v26 (full baseline)
+- Service worker cache bump to `ma-v26.0` for guaranteed refresh.
+- Ensures all pages use `getSupabase()` helper.
+- Use the provided one-file SQL to initialize/update Supabase schema.
