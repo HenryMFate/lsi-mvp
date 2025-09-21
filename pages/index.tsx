@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
 import { generalPrompts, XP_VALUES } from '../lib/prompts'
+import { ALL, loadAch, saveAch, type Achievement, loadBest, saveBest } from '../lib/achievements'
 
 function classifyOrgRows(orgs:any[], todayISO:string, defaultLead:number){
   const today = new Date(todayISO+'T00:00:00')
@@ -36,6 +37,28 @@ function saveLoggedForDay(day:string, keys:Set<string>){
   localStorage.setItem('logged_'+day, JSON.stringify(Array.from(keys)))
 }
 
+
+// simple confetti without deps
+function burstConfetti(){
+  try {
+    const c = document.createElement('canvas'); c.width = window.innerWidth; c.height = 180;
+    c.style.position='fixed'; c.style.left='0'; c.style.top='0'; c.style.pointerEvents='none'; c.style.zIndex='9999';
+    document.body.appendChild(c);
+    const ctx = c.getContext('2d')!; const pieces = Array.from({length:160}, ()=>({x:Math.random()*c.width,y:Math.random()*-40,vy:2+Math.random()*3,w:6,h:10,color:`hsl(${Math.random()*360},90%,60%)`}));
+    let t=0; const tick=()=>{ t++; ctx.clearRect(0,0,c.width,c.height);
+      pieces.forEach(p=>{ p.y+=p.vy; ctx.fillStyle=p.color; ctx.fillRect(p.x,p.y,p.w,p.h) });
+      if (t<120) requestAnimationFrame(tick); else document.body.removeChild(c);
+    }; tick();
+  } catch {}
+}
+
+function computeStreak(days: string[]): number{
+  // days = array of YYYY-MM-DD (sorted desc recommended)
+  const set = new Set(days); let d = new Date(); let s=0;
+  while (set.has(d.toISOString().slice(0,10))){ s++; d.setDate(d.getDate()-1); }
+  return s;
+}
+
 export default function Home(){
   const sb = getSupabase();
   const [today] = useState<string>(new Date().toISOString().slice(0,10))
@@ -44,11 +67,13 @@ export default function Home(){
   const [genThree, setGenThree] = useState<any[]>([])
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
+  const [ach, setAch] = useState<Set<string>>(new Set())
+  const [showChest, setShowChest] = useState(false)
   const [anonId, setAnonId] = useState<string>('')
   const [recent, setRecent] = useState<any[]>([])
   const [loggedSet, setLoggedSet] = useState<Set<string>>(new Set())
 
-  useEffect(()=>{ setLoggedSet(loadLoggedForDay(today) as Set<string>) }, [today])
+  useEffect(()=>{ setLoggedSet(loadLoggedForDay(today) as Set<string>); setAch(loadAch()) }, [today])
 
   useEffect(()=>{
     const a = localStorage.getItem('anon_id')
@@ -72,6 +97,22 @@ export default function Home(){
 
       const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
       setDaily(d||null)
+
+      // unlock based on totals and streak
+      const { data: totals } = await sb.from('actions').select('date').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(400)
+      const totalActions = (totals||[]).length
+      const days = Array.from(new Set((totals||[]).map((x:any)=>x.date)))
+      const todayCount = (rec||[]).filter((x:any)=>x.date===today).length
+      const streak = computeStreak(days)
+      const bestPrev = loadBest()
+      if (streak > bestPrev){ saveBest(streak); if (streak % 10 === 0) { alert('New personal best streak: '+streak+' days!'); } }
+
+      let next = new Set(ach)
+      const stats = { total: totalActions, todayCount: Math.min(todayCount, 6), streak, installed:true, bestStreak: Math.max(bestPrev, streak) }
+      for (const a of ALL){ if (!next.has(a.id) && a.condition(stats)){ next.add(a.id) } }
+      if (!ach.has('six_today') && stats.todayCount>=6){ burstConfetti(); setShowChest(true); }
+      if (next.size !== ach.size){ setAch(next); saveAch(next) }
+
     })()
   }, [today, leadDays, anonId, sb])
 
@@ -85,6 +126,22 @@ export default function Home(){
     setRecent(rec||[] as any[])
     const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
     setDaily(d||null)
+
+      // unlock based on totals and streak
+      const { data: totals } = await sb.from('actions').select('date').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(400)
+      const totalActions = (totals||[]).length
+      const days = Array.from(new Set((totals||[]).map((x:any)=>x.date)))
+      const todayCount = (rec||[]).filter((x:any)=>x.date===today).length
+      const streak = computeStreak(days)
+      const bestPrev = loadBest()
+      if (streak > bestPrev){ saveBest(streak); if (streak % 10 === 0) { alert('New personal best streak: '+streak+' days!'); } }
+
+      let next = new Set(ach)
+      const stats = { total: totalActions, todayCount: Math.min(todayCount, 6), streak, installed:true, bestStreak: Math.max(bestPrev, streak) }
+      for (const a of ALL){ if (!next.has(a.id) && a.condition(stats)){ next.add(a.id) } }
+      if (!ach.has('six_today') && stats.todayCount>=6){ burstConfetti(); setShowChest(true); }
+      if (next.size !== ach.size){ setAch(next); saveAch(next) }
+
     alert('Nice work! +' + xp + ' XP')
   }
 
@@ -185,7 +242,7 @@ export default function Home(){
         <div style={{position:'relative', width:64, height:64}}>
           <svg viewBox="0 0 36 36" style={{width:64, height:64}}>
             <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#2a3955" strokeWidth="4"/>
-            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="url(#g)" strokeWidth="4" strokeDasharray={(4*3.1416*16)} strokeDashoffset={(4*3.1416*16)*(1-((daily?.actions||0)/6))} strokeLinecap="round"/>
+            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="url(#g)" strokeWidth="4" strokeDasharray={(4*3.1416*16)} strokeDashoffset={(4*3.1416*16)*(1-(Math.min((daily?.actions||0),6)/6))} strokeLinecap="round"/>
             <defs>
               <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stopColor="#a3ff4a" /><stop offset="100%" stopColor="#ffe75a" />
@@ -195,7 +252,7 @@ export default function Home(){
         </div>
         <div>
           <div style={{fontWeight:800}}>Daily Progress</div>
-          <div className="small">{(daily?.actions||0)} of 6 actions logged today</div>
+          <div className="small">{Math.min((daily?.actions||0),6)} of 6 actions logged today</div>
         </div>
       </div>
 
@@ -235,6 +292,18 @@ export default function Home(){
       <div style={{marginTop:16}}>
         <ManualLog />
       </div>
+    
+{showChest && (
+  <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,.45)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9998}} onClick={()=>setShowChest(false)}>
+    <div className="card" style={{maxWidth:420, textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontSize:40}}>🧰</div>
+      <h3>Daily Six complete!</h3>
+      <p className="small">Nice work — everything after 6 still grants XP, but the Daily meter is capped at 6.</p>
+      <button className="btn" onClick={()=>setShowChest(false)}>Close</button>
+    </div>
+  </div>
+)}
+
     </div>
   )
 }
