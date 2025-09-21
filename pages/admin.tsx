@@ -46,12 +46,6 @@ export default function Admin(){
     <div className="container">
       <h1>Admin — Lakeshore Indivisible</h1>
       <div className="card" style={{marginBottom:12}}>
-        <label className="small">Admin Pass
-          <input className="input" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Enter admin password"/>
-        </label>
-      </div>
-
-      <div className="card" style={{marginBottom:12}}>
         <h3>High-Priority Lead Days</h3>
         <p className="small">How many days before the target date should high-priority prompts show (as Pending)?</p>
         <input className="input" type="number" min={0} max={30} value={lead} onChange={e=>setLead(Number(e.target.value)||0)} />
