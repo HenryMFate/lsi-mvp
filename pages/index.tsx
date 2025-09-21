@@ -109,6 +109,19 @@ export default function Home(){
       <div className="card" style={{marginBottom:12}}>
         <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
       </div>
+      <div className="card" style={{display:'flex', alignItems:'center', gap:16, marginBottom:12}}>
+        <div style={{position:'relative', width:64, height:64}}>
+          <svg viewBox="0 0 36 36" style={{width:64, height:64}}>
+            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#e5e7eb" strokeWidth="4"/>
+            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#22c55e" strokeWidth="4" strokeDasharray={(4*3.1416*16)} strokeDashoffset={(4*3.1416*16)*(1-((daily?.actions||0)/6))} strokeLinecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <div style={{fontWeight:700}}>Daily Progress</div>
+          <div className="small">{(daily?.actions||0)} of 6 actions logged today</div>
+        </div>
+      </div>
+
       <h3>LSI Actions (3)</h3>
       {orgThree.length === 0 ? (
         <div className="card"><div className="small">No Lakeshore Indivisible actions at this time.</div></div>
