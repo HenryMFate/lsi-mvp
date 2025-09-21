@@ -67,6 +67,7 @@ export default function Home(){
   const [genThree, setGenThree] = useState<any[]>([])
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
+  const [totalAll, setTotalAll] = useState<number>(0)
   const [ach, setAch] = useState<Set<string>>(new Set())
   const [showChest, setShowChest] = useState(false)
   const [anonId, setAnonId] = useState<string>('')
@@ -97,6 +98,8 @@ export default function Home(){
 
       const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
       setDaily(d||null)
+      const { data: tc } = await sb.from('actions').select('id', {count:'exact', head:true})
+      setTotalAll(tc as any || 0)
 
       // unlock based on totals and streak
       const { data: totals } = await sb.from('actions').select('date').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(400)
@@ -126,6 +129,8 @@ export default function Home(){
     setRecent(rec||[] as any[])
     const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
     setDaily(d||null)
+      const { data: tc } = await sb.from('actions').select('id', {count:'exact', head:true})
+      setTotalAll(tc as any || 0)
 
       // unlock based on totals and streak
       const { data: totals } = await sb.from('actions').select('date').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(400)
@@ -224,7 +229,7 @@ export default function Home(){
   return (
     <div className="container">
       <div className="header">
-        <img src="/icon-192.png" style={{width:36, height:36, borderRadius:8}}/>
+        <img src="/LSI.png" style={{width:36, height:36, borderRadius:8}}/>
         <h1>LSI Micro Actions</h1>
         <div className="spacer" />
         <div className="nav">
@@ -238,22 +243,23 @@ export default function Home(){
         <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
       </div>
 
-      <div className="card" style={{display:'flex', alignItems:'center', gap:16}}>
-        <div style={{position:'relative', width:64, height:64}}>
-          <svg viewBox="0 0 36 36" style={{width:64, height:64}}>
-            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="#2a3955" strokeWidth="4"/>
-            <path d="M18 2 a 16 16 0 1 1 0 32 a 16 16 0 1 1 0 -32" fill="none" stroke="url(#g)" strokeWidth="4" strokeDasharray={(4*3.1416*16)} strokeDashoffset={(4*3.1416*16)*(1-(Math.min((daily?.actions||0),6)/6))} strokeLinecap="round"/>
-            <defs>
-              <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stopColor="#a3ff4a" /><stop offset="100%" stopColor="#ffe75a" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <div>
-          <div style={{fontWeight:800}}>Daily Progress</div>
-          <div className="small">{Math.min((daily?.actions||0),6)} of 6 actions logged today</div>
-        </div>
+      
+<div className="card">
+  <div style={{display:'flex', alignItems:'center', justifyContent:'space-between'}}>
+    <div>
+      <div style={{fontWeight:800}}>Daily Progress</div>
+      <div className="small">{Math.min((daily?.actions||0),6)} of 6 actions logged today</div>
+    </div>
+  </div>
+  <div style={{marginTop:12, display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:6}}>
+    {Array.from({length:6}).map((_,i)=>{
+      const filled = (daily?.actions||0) > i;
+      return <div key={i} style={{height:16, borderRadius:8, background: filled ? '#ffe75a' : '#3a5aa0', border:'1px solid rgba(168,182,217,.35)'}} />;
+    })}
+  </div>
+  <div className="small" style={{marginTop:8, color:'#bdefff'}}>Extra actions still earn XP after 6.</div>
+</div>
+
       </div>
 
       <h3>LSI Actions (3)</h3>
@@ -303,6 +309,14 @@ export default function Home(){
     </div>
   </div>
 )}
+
+
+<div style={{position:'fixed', bottom:12, left:12, right:12, zIndex:999, pointerEvents:'none'}}>
+  <div className="card" style={{display:'flex', gap:12, justifyContent:'space-between', alignItems:'center', opacity:.95, pointerEvents:'auto'}}>
+    <div><strong>Today (all users):</strong> {(daily?.actions||0)} actions</div>
+    <div><strong>Cumulative:</strong> {Intl.NumberFormat().format(totalAll)}</div>
+  </div>
+</div>
 
     </div>
   )
