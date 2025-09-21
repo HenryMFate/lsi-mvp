@@ -1,4 +1,4 @@
-const CACHE = 'ma-v27.6'; // bump this on each release to force-refresh
+const CACHE = 'ma-v27.7'; // bump this on each release to force-refresh
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/','/manifest.json'])));
