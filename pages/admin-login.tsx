@@ -1,25 +1,16 @@
+
 import { useState } from 'react'
-import { useRouter } from 'next/router'
 
 export default function AdminLogin(){
-  const [pass, setPass] = useState('')
-  const router = useRouter()
-  function submit(){
-    if (pass === (process.env.NEXT_PUBLIC_ADMIN_PASS || '')){
-      localStorage.setItem('admin_ok','1')
-      router.push('/admin')
-    } else {
-      alert('Wrong password')
-    }
-  }
+  const [p, setP] = useState('')
+  function submit(e:any){ e.preventDefault(); if (p === (process.env.NEXT_PUBLIC_ADMIN_PASS||'')){ localStorage.setItem('admin_ok','1'); window.location.href='/admin' } else { alert('Wrong password') } }
   return (
-    <div className="container">
-      <div className="card">
-        <h1>Admin Login</h1>
-        <p className="small">Enter the admin password to manage Lakeshore Indivisible prompts.</p>
-        <input className="input" type="password" value={pass} onChange={e=>setPass(e.target.value)} placeholder="Admin password" />
-        <button className="btn" style={{marginTop:10}} onClick={submit}>Enter</button>
-      </div>
+    <div style={{maxWidth:480, margin:'60px auto', padding:16}}>
+      <h1>Admin Login</h1>
+      <form onSubmit={submit}>
+        <input className="input" type="password" value={p} onChange={e=>setP(e.target.value)} placeholder="Admin password" />
+        <button className="btn" style={{marginTop:10}}>Enter</button>
+      </form>
     </div>
   )
 }

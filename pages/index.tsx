@@ -1,3 +1,4 @@
+
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
@@ -27,11 +28,9 @@ function loadLoggedForDay(day:string): Set<string>{
     const raw = JSON.parse(localStorage.getItem('logged_'+day) || '[]');
     const arr = Array.isArray(raw) ? raw.filter((x:any)=>typeof x==='string') : [];
     return new Set<string>(arr);
-  } catch {
+  } catch (e) {
     return new Set<string>();
   }
-}
-catch{ return new Set() }
 }
 function saveLoggedForDay(day:string, keys:Set<string>){
   localStorage.setItem('logged_'+day, JSON.stringify(Array.from(keys)))
@@ -40,14 +39,15 @@ function saveLoggedForDay(day:string, keys:Set<string>){
 export default function Home(){
   const sb = getSupabase();
   const [today] = useState<string>(new Date().toISOString().slice(0,10))
-  const [leadDays, setLeadDays] = useState<number>(7)
+  const [leadDays] = useState<number>(7)
   const [orgThree, setOrgThree] = useState<any[]>([])
   const [genThree, setGenThree] = useState<any[]>([])
-  const [recent, setRecent] = useState<any[]>([])
-  const [loggedSet, setLoggedSet] = useState<Set<string>>(new Set())
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
   const [anonId, setAnonId] = useState<string>('')
+  const [recent, setRecent] = useState<any[]>([])
+  const [loggedSet, setLoggedSet] = useState<Set<string>>(new Set())
+
   useEffect(()=>{ setLoggedSet(loadLoggedForDay(today) as Set<string>) }, [today])
 
   useEffect(()=>{
@@ -58,7 +58,6 @@ export default function Home(){
 
   useEffect(()=>{
     (async()=>{
-
       const { data: orgs } = await sb.from('org_prompts').select('id,text,priority,target_day,lead_days')
       const { highs, lows } = classifyOrgRows((orgs||[]) as any[], today, leadDays||7)
       const chosenHighs = highs.slice(0,3)
@@ -74,16 +73,14 @@ export default function Home(){
       const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
       setDaily(d||null)
     })()
-  }, [today, leadDays])
+  }, [today, leadDays, anonId, sb])
 
   async function logAction(desc:string, category:string, minutes:number, date:string, withFriend:boolean, org:boolean, p?:any){
     const xp = org ? XP_VALUES.org : XP_VALUES.general
     const body:any = { anon_id: (anonId||'').toLowerCase(), date, category, description:desc, minutes, with_friend: withFriend, xp, source:'prompt' }
     const { error } = await sb.from('actions').insert(body)
     if (error){ alert(error.message); return; }
-    // track client-side logged keys
     if (p){ const k = promptKey(p); const next = new Set(loggedSet); next.add(k); setLoggedSet(next); saveLoggedForDay(today, next); }
-    // refresh recent
     const { data: rec } = await sb.from('actions').select('id,date,description,category,xp').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(10)
     setRecent(rec||[] as any[])
     const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
@@ -92,19 +89,19 @@ export default function Home(){
   }
 
   function PromptCard({prompt, idx, org}:{prompt:any; idx:number; org:boolean}){
-    const disabled = loggedSet.has(promptKey(prompt))
     const pending = !!prompt.pending
     const [minutes, setMinutes] = useState<number>(10)
     const [date, setDate] = useState<string>(today)
     const [withFriend, setWithFriend] = useState<boolean>(false)
     const xp = org ? XP_VALUES.org : XP_VALUES.general
+    const disabled = loggedSet.has(promptKey(prompt))
 
     return (
       <div className="card" style={{opacity: disabled? .5 : 1}}>
         <div style={{display:'flex', alignItems:'center', gap:8, justifyContent:'space-between'}}>
           <div>
             <div style={{fontWeight:700}}>{prompt.text}</div>
-            {prompt.link && <a className="small link" href={prompt.link} target="_blank" rel="noreferrer">Open link</a>}
+            {prompt.link && <a className="small" style={{color:'#bdefff'}} href={prompt.link} target="_blank" rel="noreferrer">Open link</a>}
           </div>
           <div><span className="badge">{(prompt.category || (org ? 'civic' : 'general'))} · +{xp} XP</span></div>
         </div>
@@ -117,7 +114,7 @@ export default function Home(){
             <span className="small">{pending ? 'Pending until its day' : 'Logged for today'}</span>
           )}
         </div>
-        {openIdx===idx && !pending && (
+        {openIdx===idx && !pending && !disabled && (
           <div style={{marginTop:10, borderTop:'1px solid rgba(168,182,217,.25)', paddingTop:10}}>
             <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:8}}>
               <label className="small">Minutes
@@ -139,7 +136,6 @@ export default function Home(){
     )
   }
 
-  // Manual "Log Your Own Action"
   function ManualLog(){
     const [desc, setDesc] = useState('')
     const [minutes, setMinutes] = useState<number>(10)
@@ -149,17 +145,12 @@ export default function Home(){
       const body:any = { anon_id:(anonId||'').toLowerCase(), date, category:'reflection', description:desc, minutes, with_friend:withFriend, xp:XP_VALUES.general, source:'own' }
       const { error } = await sb.from('actions').insert(body)
       if (error){ alert(error.message); return; }
-    // track client-side logged keys
-    if (p){ const k = promptKey(p); const next = new Set(loggedSet); next.add(k); setLoggedSet(next); saveLoggedForDay(today, next); }
-    // refresh recent
-    const { data: rec } = await sb.from('actions').select('id,date,description,category,xp').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(10)
-    setRecent(rec||[] as any[])
       setDesc(''); alert('Logged your own action (+'+XP_VALUES.general+' XP)')
     }
     return (
-      <div className="card" style={{opacity: disabled? .5 : 1}}>
+      <div className="card">
         <h3>Log your own action</h3>
-        <div className="grid" style={{gridTemplateColumns:'1fr 140px 140px 140px'}}>
+        <div className="row">
           <input className="input" placeholder="What did you do?" value={desc} onChange={e=>setDesc(e.target.value)} />
           <input className="input" type="number" min={1} max={240} value={minutes} onChange={e=>setMinutes(Number(e.target.value))} />
           <input className="input" type="date" value={date} onChange={e=>setDate(e.target.value)} />
@@ -186,7 +177,7 @@ export default function Home(){
         </div>
       </div>
 
-      <div className="card" style={{opacity: disabled? .5 : 1}}>
+      <div className="card">
         <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
       </div>
 
@@ -209,13 +200,9 @@ export default function Home(){
       </div>
 
       <h3>LSI Actions (3)</h3>
-      {orgThree.length === 0 ? (
-        <div className="card" style={{opacity: disabled? .5 : 1}}><div className="small">No Lakeshore Indivisible actions at this time.</div></div>
-      ) : (
-        <div className="row">
-          {orgThree.map((p, i)=> <PromptCard key={'o'+i} prompt={p} idx={i} org={true} /> )}
-        </div>
-      )}
+      <div className="row">
+        {orgThree.map((p, i)=> <PromptCard key={'o'+i} prompt={p} idx={i} org={true} /> )}
+      </div>
 
       <h3 style={{marginTop:16}}>General Actions (3)</h3>
       <div className="row">
@@ -223,30 +210,27 @@ export default function Home(){
       </div>
 
       <h3 style={{marginTop:16}}>Recent actions (last 10)</h3>
-<div className="card">
-  {recent.length===0 ? <div className="small">No actions yet today.</div> : (
-    <div className="table">
-      <div style={{display:'grid', gridTemplateColumns:'1fr 120px 120px 90px 80px', gap:8, padding:'6px 0', borderBottom:'1px solid rgba(168,182,217,.18)'}} className="small">
-        <div>Description</div><div>Date</div><div>Category</div><div>XP</div><div></div>
+      <div className="card">
+        {recent.length===0 ? <div className="small">No actions yet today.</div> : (
+          <div className="table">
+            {recent.map((r:any)=>(
+              <div key={r.id} style={{display:'grid', gridTemplateColumns:'1fr 120px 120px 90px 80px', gap:8, alignItems:'center', padding:'8px 0', borderBottom:'1px solid rgba(168,182,217,.08)'}}>
+                <div>{r.description}</div>
+                <div className="small">{r.date}</div>
+                <div className="small">{r.category}</div>
+                <div className="small">{r.xp}</div>
+                <div><button className="btn secondary" onClick={async()=>{
+                  if (!confirm('Delete this action?')) return;
+                  const { error } = await sb.from('actions').delete().eq('id', r.id);
+                  if (error){ alert(error.message); return; }
+                  const next = recent.filter((x:any)=>x.id!==r.id);
+                  setRecent(next);
+                }}>Delete</button></div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      {recent.map((r:any)=>(
-        <div key={r.id} style={{display:'grid', gridTemplateColumns:'1fr 120px 120px 90px 80px', gap:8, alignItems:'center', padding:'8px 0', borderBottom:'1px solid rgba(168,182,217,.08)'}}>
-          <div>{r.description}</div>
-          <div className="small">{r.date}</div>
-          <div className="small">{r.category}</div>
-          <div className="small">{r.xp}</div>
-          <div><button className="btn secondary" onClick={async()=>{
-            if (!confirm('Delete this action?')) return;
-            const { error } = await sb.from('actions').delete().eq('id', r.id);
-            if (error){ alert(error.message); return; }
-            const next = recent.filter((x:any)=>x.id!==r.id);
-            setRecent(next);
-          }}>Delete</button></div>
-        </div>
-      ))}
-    </div>
-  )}
-</div>
 
       <div style={{marginTop:16}}>
         <ManualLog />

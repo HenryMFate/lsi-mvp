@@ -1,82 +1,64 @@
+
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
 
-type OrgPrompt = { id:number; text:string; priority:'high'|'low'; target_day:string|null; lead_days:number|null }
-
 export default function Admin(){
-  if (typeof window !== 'undefined' && !localStorage.getItem('admin_ok')){ window.location.href='/admin-login'; return null as any; }
+  if (typeof window !== 'undefined' && !localStorage.getItem('admin_ok')){ if (typeof window!=='undefined') window.location.href='/admin-login'; return null as any; }
   const sb = getSupabase()
-  const [lead, setLead] = useState<number>(7)
+  const [rows, setRows] = useState<any[]>([])
   const [text, setText] = useState('')
-  const [priority, setPriority] = useState<'high'|'low'>('low')
-  const [target, setTarget] = useState<string>('')
-  const [leadDays, setLeadDays] = useState<number>(7)
-  const [rows, setRows] = useState<OrgPrompt[]>([])
-
-  function ok(){ return typeof window !== 'undefined' && !!localStorage.getItem('admin_ok') }
+  const [priority, setPriority] = useState<'low'|'high'>('low')
+  const [target, setTarget] = useState('')
+  const [lead, setLead] = useState<number>(7)
 
   async function load(){
-    const { data: s } = await sb.from('app_settings').select('*').eq('key','lsi_lead_days').maybeSingle()
-    if (s?.value) setLead(Number(s.value)||7)
-    const { data: o } = await sb.from('org_prompts').select('id,text,priority,target_day,lead_days').order('target_day', {ascending:true})
-    setRows((o||[]) as OrgPrompt[])
+    const { data } = await sb.from('org_prompts').select('id,text,priority,target_day,lead_days').order('id', {ascending:false})
+    setRows(data||[])
   }
   useEffect(()=>{ load() }, [])
 
-  async function saveLead(){
-    if (!ok()) return alert('Wrong password')
-    await sb.from('app_settings').upsert({ key:'lsi_lead_days', value:String(lead) }, { onConflict:'key' })
-    alert('Lead days saved')
+  async function add(){
+    if (!text){ alert('Enter text'); return; }
+    const body:any = { text, priority, target_day: (target||null), lead_days: lead }
+    const { error } = await sb.from('org_prompts').insert(body)
+    if (error){ alert(error.message); return; }
+    setText(''); setPriority('low'); setTarget(''); setLead(7); await load()
   }
-  async function addPrompt(){
-    if (!ok()) return alert('Wrong password')
-    if (!text.trim()) return alert('Enter text')
-    const { error: insErr } = await sb.from('org_prompts').insert({  text, priority, target_day: target || null, lead_days: leadDays  }); if (insErr){ alert(insErr.message); return; }
-    setText(''); setPriority('low'); setTarget('')
-    await load()
-  }
-  async function delPrompt(id:number){
-    if (!ok()) return alert('Wrong password')
-    if (!confirm('Delete this prompt?')) return
-    await sb.from('org_prompts').delete().eq('id', id)
+  async function del(id:any){
+    if (!confirm('Delete this prompt?')) return;
+    const { error } = await sb.from('org_prompts').delete().eq('id', id)
+    if (error){ alert(error.message); return; }
     await load()
   }
 
   return (
     <div className="container">
-      <h1>Admin — Lakeshore Indivisible</h1>
-      <div className="card" style={{marginBottom:12}}>
-        <h3>Add LSI Prompt</h3>
-        <div style={{display:'grid', gridTemplateColumns:'1fr 120px 160px 120px 120px', gap:8}}>
-          <input className="input" placeholder="Prompt text…" value={text} onChange={e=>setText(e.target.value)} />
+      <h1>Admin — LSI Prompts</h1>
+      <div className="card">
+        <div style={{display:'grid', gridTemplateColumns:'1fr 120px 140px 120px auto', gap:8}}>
+          <input className="input" placeholder="Prompt text" value={text} onChange={e=>setText(e.target.value)} />
           <select className="input" value={priority} onChange={e=>setPriority(e.target.value as any)}>
-            <option value="high">high</option>
             <option value="low">low</option>
+            <option value="high">high</option>
           </select>
           <input className="input" type="date" value={target} onChange={e=>setTarget(e.target.value)} />
-          <input className="input" type="number" min={0} max={30} value={leadDays} onChange={e=>setLeadDays(Number(e.target.value)||0)} placeholder="Lead days" />
-          <button className="btn" onClick={addPrompt}>Add</button>
+          <input className="input" type="number" min={0} max={60} value={lead} onChange={e=>setLead(Number(e.target.value)||0)} />
+          <button className="btn" onClick={add}>Add</button>
         </div>
       </div>
 
+      <div style={{height:12}} />
       <div className="card">
-        <h3>Existing Prompts</h3>
-        <table style={{width:'100%', borderCollapse:'collapse'}}>
-          <thead><tr><th style={{textAlign:'left'}}>Text</th><th>Priority</th><th>Date</th><th>Lead days</th><th></th></tr></thead>
-          <tbody>
-            {rows.map(r=> (
-              <tr key={r.id}>
-                <td style={{padding:'6px 4px'}}>{r.text}</td>
-                <td style={{textAlign:'center'}}>{r.priority}</td>
-                <td style={{textAlign:'center'}}>{r.target_day || '—'}</td>
-                <td style={{textAlign:'center'}}>{r.lead_days ?? '—'}</td>
-                <td style={{textAlign:'right'}}>
-                  <button className="btn" onClick={()=>delPrompt(r.id)}>Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="small" style={{marginBottom:8}}>Existing</div>
+        {rows.map(r=>(
+          <div key={r.id} style={{display:'grid', gridTemplateColumns:'1fr 100px 120px 100px 80px', gap:8, alignItems:'center', padding:'8px 0', borderBottom:'1px solid rgba(168,182,217,.18)'}}>
+            <div>{r.text}</div>
+            <div className="small">{r.priority}</div>
+            <div className="small">{r.target_day||'-'}</div>
+            <div className="small">{r.lead_days||0}d</div>
+            <div><button className="btn secondary" onClick={()=>del(r.id)}>Delete</button></div>
+          </div>
+        ))}
       </div>
     </div>
   )

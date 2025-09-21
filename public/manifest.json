@@ -3,20 +3,18 @@
   "short_name": "LSI Actions",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0f172a",
+  "background_color": "#0e1530",
+  "theme_color": "#5aa6ff",
   "icons": [
     {
       "src": "/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any maskable"
+      "sizes": "192x192"
     },
     {
       "src": "/icon-512.png",
       "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any maskable"
+      "sizes": "512x512"
     }
   ]
 }

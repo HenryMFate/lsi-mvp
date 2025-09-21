@@ -1,18 +1,2 @@
-const CACHE = 'ma-v29.0'; // bump this on each release to force-refresh
-
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/','/manifest.json'])));
-});
-
-self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-});
+self.addEventListener('install',e=>{e.waitUntil(caches.open('ma-v29.2b').then(c=>c.addAll(['/','/manifest.json'])))});
+self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
