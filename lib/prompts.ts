@@ -1,14 +1,6 @@
 
 export type Prompt = { text: string; link?: string; category?: 'civic'|'mutual_aid'|'environment'|'bridging'|'reflection'|'general' }
-
 export const XP_VALUES = { org: 25, general: 10 }
-
-const CONTACT = {
-  wi_leg: 'https://legis.wisconsin.gov/',
-  us_senate: 'https://www.senate.gov/senators/senators-contact.htm',
-  us_house_find: 'https://www.house.gov/representatives/find-your-representative',
-  vote: 'https://myvote.wi.gov/'
-};
 
 const BASE: Prompt[] = [
   { text:'Say hello to 10 people in Sheboygan today', category:'bridging' },
@@ -16,9 +8,9 @@ const BASE: Prompt[] = [
   { text:'Pick up 10 pieces of trash at Deland Park', link:'https://sheboygan-wi.gov/departments/parks-recreation-forestry/parks/deland-park/', category:'environment' },
   { text:'Drop off 2 cans at Sheboygan County Food Bank', link:'https://sheboygancountyfoodbank.com/', category:'mutual_aid' },
   { text:'Take a 10-minute gratitude walk at Evergreen Park', link:'https://sheboygan-wi.gov/departments/parks-recreation-forestry/parks/evergreen-park/', category:'reflection' },
-  { text:'Write a respectful letter to your STATE representative about a local issue', link:CONTACT.wi_leg, category:'civic' },
-  { text:'Write a respectful letter to your FEDERAL representative/senators about a Sheboygan concern', link:CONTACT.us_house_find, category:'civic' },
-  { text:'Help a neighbor check voter registration', category:'civic', link:CONTACT.vote },
+  { text:'Write to your STATE representative about a local issue (be respectful)', link:'https://legis.wisconsin.gov/', category:'civic' },
+  { text:'Write to your FEDERAL representative/senators about a Sheboygan concern', link:'https://www.house.gov/representatives/find-your-representative', category:'civic' },
+  { text:'Help a neighbor check voter registration', category:'civic', link:'https://myvote.wi.gov/' },
   { text:'Thank a police officer, firefighter, or EMT for their service', category:'bridging' },
 ];
 

@@ -1,6 +1,5 @@
 
 import { useState } from 'react'
-
 export default function AdminLogin(){
   const [p, setP] = useState('')
   function submit(e:any){ e.preventDefault(); if (p === (process.env.NEXT_PUBLIC_ADMIN_PASS||'')){ localStorage.setItem('admin_ok','1'); window.location.href='/admin' } else { alert('Wrong password') } }
