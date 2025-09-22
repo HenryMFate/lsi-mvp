@@ -84,7 +84,8 @@ export default function Home(){
       const { count } = await sb.from('actions').select('*', { count: 'exact', head: true })
       setTotalAll(count || 0)
 
-      const { data: xpsum } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single().catch(()=>({ data: { xp: 0 } }))
+      const { data: xpsum, error: xpErr } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single()
+      if (xpErr) { setTotalXP(0) } else { setTotalXP((xpsum as any)?.xp ? Number((xpsum as any).xp) : 0) }
       setTotalXP((xpsum && (xpsum as any).xp) ? Number((xpsum as any).xp) : 0)
 
       const { data: totals } = await sb.from('actions').select('date').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(400)
