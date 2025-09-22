@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
 import { generalPrompts, XP_VALUES } from '../lib/prompts'
-import { ALL, loadAch, saveAch, loadBest, saveBest } from '../lib/achievements'
+import { ALL, loadAch, saveAch, loadBest, saveBest, nextXpTarget } from '../lib/achievements'
 
 type OrgPrompt = { id:any, text:string, priority:'low'|'high', target_day?:string|null, lead_days?:number|null, link?:string, category?:string }
 
@@ -231,10 +231,27 @@ export default function Home(){
           <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
         </div>
 
+
 <div className="card" style={{marginTop:12, padding:'18px 16px', background: 'linear-gradient(90deg, rgba(90,166,255,.22), rgba(61,141,240,.16))'}}>
   <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
     <div>
       <div className="small">Your lifetime XP</div>
+      <div style={{fontSize:34, fontWeight:900, letterSpacing:.3}}>{Intl.NumberFormat().format(totalXP)}</div>
+    </div>
+    <div style={{display:'grid', gap:6}}>
+      <div className="badge">+{XP_VALUES.org} XP per LSI</div>
+      <div className="badge">+{XP_VALUES.general} XP per general</div>
+    </div>
+  </div>
+  {(() => { const t = nextXpTarget(totalXP||0); return (
+    <div style={{marginTop:12}}>
+      <div className="small">Next badge at <strong>{t.next.toLocaleString()} XP</strong> • <strong>{t.remaining.toLocaleString()} XP</strong> to go</div>
+      <div style={{height:10, background:'#162a55', borderRadius:999, overflow:'hidden', border:'1px solid rgba(168,182,217,.35)', marginTop:6}}>
+        <div style={{height:'100%', width:t.pct+'%', background:'linear-gradient(90deg,#ffe75a,#fff2a6)', transition:'width .3s ease'}} />
+      </div>
+    </div>
+  )})()}
+</div>
       <div style={{fontSize:34, fontWeight:900, letterSpacing:.3}}>{Intl.NumberFormat().format(totalXP)}</div>
     </div>
     <div style={{display:'grid', gap:6}}>

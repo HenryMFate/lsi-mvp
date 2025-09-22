@@ -18,3 +18,15 @@ export function loadAch(): Set<string> { try { return new Set(JSON.parse(localSt
 export function saveAch(s: Set<string>){ localStorage.setItem(KEY, JSON.stringify(Array.from(s))); }
 export function loadBest(): number { try { return Number(localStorage.getItem(BEST)||'0'); } catch { return 0; } }
 export function saveBest(n: number){ localStorage.setItem(BEST, String(n)); }
+
+
+export const XP_MILESTONES = [0, 250, 500, 1000, 2000, 4000, 8000];
+export function nextXpTarget(total: number){
+  let next = XP_MILESTONES.find(m => m > total);
+  if (next === undefined) next = XP_MILESTONES[XP_MILESTONES.length-1];
+  const prev = [...XP_MILESTONES].reverse().find(m => m <= total) ?? 0;
+  const span = Math.max(1, next - prev);
+  const done = Math.max(0, total - prev);
+  const pct = Math.max(0, Math.min(100, Math.round((done/span)*100)));
+  return { prev, next, done, span, pct, remaining: Math.max(0, next-total) };
+}
