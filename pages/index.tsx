@@ -1,9 +1,8 @@
-
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
 import { generalPrompts, XP_VALUES } from '../lib/prompts'
-import { ALL, loadAch, saveAch, loadBest, saveBest, nextXpTarget } from '../lib/achievements'
+import { ALL, loadAch, saveAch, loadBest, saveBest, nextXpTarget, XP_MILESTONES } from '../lib/achievements'
 
 type OrgPrompt = { id:any, text:string, priority:'low'|'high', target_day?:string|null, lead_days?:number|null, link?:string, category?:string }
 
@@ -49,12 +48,13 @@ export default function Home(){
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
   const [totalAll, setTotalAll] = useState<number>(0)
-  const [totalXP, setTotalXP] = useState<number>(0)
   const [anonId, setAnonId] = useState<string>('')
   const [recent, setRecent] = useState<any[]>([])
   const [loggedSet, setLoggedSet] = useState<Set<string>>(new Set())
   const [ach, setAch] = useState<Set<string>>(new Set())
   const [showChest, setShowChest] = useState(false)
+  const [totalXP, setTotalXP] = useState<number>(0)
+  const [showMilestone, setShowMilestone] = useState<number|null>(null)
 
   useEffect(()=>{ setLoggedSet(loadLoggedForDay(today) as Set<string>); setAch(loadAch()) }, [today])
 
@@ -85,8 +85,8 @@ export default function Home(){
       setTotalAll(count || 0)
 
       const { data: xpsum, error: xpErr } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single()
-      if (xpErr) { setTotalXP(0) } else { setTotalXP((xpsum as any)?.xp ? Number((xpsum as any).xp) : 0) }
-      setTotalXP((xpsum && (xpsum as any).xp) ? Number((xpsum as any).xp) : 0)
+      if (!xpErr) setTotalXP((xpsum as any)?.xp ? Number((xpsum as any).xp) : 0)
+      else setTotalXP(0)
 
       const { data: totals } = await sb.from('actions').select('date').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(400)
       const totalActions = (totals||[]).length
@@ -104,6 +104,16 @@ export default function Home(){
     })()
   }, [today, leadDays, anonId, sb])
 
+  // Milestone popup when crossing XP thresholds
+  useEffect(()=>{
+    const last = Number(localStorage.getItem('last_xp_milestone')||'0')
+    const current = XP_MILESTONES.filter(m => m <= totalXP).slice(-1)[0] || 0
+    if (current > last){
+      localStorage.setItem('last_xp_milestone', String(current))
+      if (current > 0) setShowMilestone(current)
+    }
+  }, [totalXP])
+
   async function logAction(desc:string, category:string, minutes:number, date:string, withFriend:boolean, org:boolean, p?:any){
     const xp = org ? XP_VALUES.org : XP_VALUES.general
     const body:any = { anon_id: (anonId||'').toLowerCase(), date, category, description:desc, minutes, with_friend: withFriend, xp, source:'prompt' }
@@ -114,6 +124,9 @@ export default function Home(){
     setRecent(rec||[] as any[])
     const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
     setDaily(d||null)
+    // refresh XP
+    const { data: xpsum, error: xpErr } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single()
+    if (!xpErr) setTotalXP((xpsum as any)?.xp ? Number((xpsum as any).xp) : 0)
     alert('Nice work! +' + xp + ' XP')
   }
 
@@ -174,6 +187,9 @@ export default function Home(){
       const body:any = { anon_id:(anonId||'').toLowerCase(), date, category:'reflection', description:desc, minutes, with_friend:withFriend, xp:XP_VALUES.general, source:'own' }
       const { error } = await sb.from('actions').insert(body)
       if (error){ alert(error.message); return; }
+      // refresh xp
+      const { data: xpsum, error: xpErr } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single()
+      if (!xpErr) setTotalXP((xpsum as any)?.xp ? Number((xpsum as any).xp) : 0)
       setDesc(''); alert('Logged your own action (+'+XP_VALUES.general+' XP)')
     }
     return (
@@ -204,6 +220,17 @@ export default function Home(){
     </div>
   ) : null;
 
+  const milestone = showMilestone ? (
+    <div style={{position:'fixed', inset:0, background:'rgba(0,0,0,.55)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999}} onClick={()=>setShowMilestone(null)}>
+      <div className="card" style={{maxWidth:440, textAlign:'center'}} onClick={e=>e.stopPropagation()}>
+        <div style={{fontSize:44}}>🎖️</div>
+        <h3>Milestone unlocked</h3>
+        <p className="small">You just crossed <strong>{showMilestone.toLocaleString()} XP</strong> — keep going, ya know!</p>
+        <button className="btn" onClick={()=>setShowMilestone(null)}>Nice!</button>
+      </div>
+    </div>
+  ) : null;
+
   const footer = (
     <div style={{position:'fixed', bottom:8, left:8, right:8, zIndex:999, pointerEvents:'none'}}>
       <div className="card" style={{display:'flex', gap:12, justifyContent:'space-between', alignItems:'center', opacity:.92, pointerEvents:'auto', padding:'10px 14px'}}>
@@ -212,6 +239,8 @@ export default function Home(){
       </div>
     </div>
   );
+
+  const t = nextXpTarget(totalXP||0)
 
   return (
     <>
@@ -231,75 +260,40 @@ export default function Home(){
           <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
         </div>
 
-
-<div className="card" style={{marginTop:12, padding:'18px 16px',
-  background: 'linear-gradient(90deg, rgba(90,166,255,.22), rgba(61,141,240,.16))'}}>
-  <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
-    <div>
-      <div className="small">Your lifetime XP</div>
-      <div style={{fontSize:34, fontWeight:900, letterSpacing:.3}}>
-        {Intl.NumberFormat().format(totalXP)}
-      </div>
-    </div>
-    <div style={{display:'grid', gap:6}}>
-      <div className="badge">+{XP_VALUES.org} XP per LSI</div>
-      <div className="badge">+{XP_VALUES.general} XP per general</div>
-    </div>
-  </div>
-
-  {/* XP progress bar */}
-  {(() => {
-    const t = nextXpTarget(totalXP || 0)
-    return (
-      <div style={{marginTop:12}}>
-        <div className="small">
-          Next badge at <strong>{t.next.toLocaleString()} XP</strong> •
-          <strong> {t.remaining.toLocaleString()} XP</strong> to go
+        {/* Lifetime XP + progress to next badge */}
+        <div className="card" style={{marginTop:12, padding:'18px 16px',
+          background: 'linear-gradient(90deg, rgba(90,166,255,.22), rgba(61,141,240,.16))'}}>
+          <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
+            <div>
+              <div className="small">Your lifetime XP</div>
+              <div style={{fontSize:34, fontWeight:900, letterSpacing:.3}}>
+                {Intl.NumberFormat().format(totalXP)}
+              </div>
+            </div>
+            <div style={{display:'grid', gap:6}}>
+              <div className="badge">+{XP_VALUES.org} XP per LSI</div>
+              <div className="badge">+{XP_VALUES.general} XP per general</div>
+            </div>
+          </div>
+          <div style={{marginTop:12}}>
+            <div className="small">
+              Next badge at <strong>{t.next.toLocaleString()} XP</strong> •
+              <strong> {t.remaining.toLocaleString()} XP</strong> to go
+            </div>
+            <div style={{
+              height:10, background:'#162a55', borderRadius:999, overflow:'hidden',
+              border:'1px solid rgba(168,182,217,.35)', marginTop:6
+            }}>
+              <div style={{
+                height:'100%', width: t.pct+'%',
+                background:'linear-gradient(90deg,#ffe75a,#fff2a6)',
+                transition:'width .3s ease'
+              }}/>
+            </div>
+          </div>
         </div>
-        <div style={{
-          height:10,
-          background:'#162a55',
-          borderRadius:999,
-          overflow:'hidden',
-          border:'1px solid rgba(168,182,217,.35)',
-          marginTop:6
-        }}>
-          <div style={{
-            height:'100%',
-            width: t.pct+'%',
-            background:'linear-gradient(90deg,#ffe75a,#fff2a6)',
-            transition:'width .3s ease'
-          }}/>
-        </div>
-      </div>
-    )
-  })()}
-</div>
-    <div style={{display:'grid', gap:6}}>
-      <div className="badge">+{XP_VALUES.org} XP per LSI</div>
-      <div className="badge">+{XP_VALUES.general} XP per general</div>
-    </div>
-  </div>
-  {(() => { const t = nextXpTarget(totalXP||0); return (
-    <div style={{marginTop:12}}>
-      <div className="small">Next badge at <strong>{t.next.toLocaleString()} XP</strong> • <strong>{t.remaining.toLocaleString()} XP</strong> to go</div>
-      <div style={{height:10, background:'#162a55', borderRadius:999, overflow:'hidden', border:'1px solid rgba(168,182,217,.35)', marginTop:6}}>
-        <div style={{height:'100%', width:t.pct+'%', background:'linear-gradient(90deg,#ffe75a,#fff2a6)', transition:'width .3s ease'}} />
-      </div>
-    </div>
-  )})()}
-</div>
-      <div style={{fontSize:34, fontWeight:900, letterSpacing:.3}}>{Intl.NumberFormat().format(totalXP)}</div>
-    </div>
-    <div style={{display:'grid', gap:6}}>
-      <div className="badge">+{XP_VALUES.org} XP per LSI</div>
-      <div className="badge">+{XP_VALUES.general} XP per general</div>
-    </div>
-  </div>
-</div>
 
-
-
+        {/* Daily meter */}
         <div className="card">
           <div style={{fontWeight:800}}>Daily Progress</div>
           <div className="small">{Math.min((daily?.actions||0),6)} of 6 actions logged today</div>
@@ -344,6 +338,7 @@ export default function Home(){
       </div>
       {footer}
       {chest}
+      {milestone}
     </>
   )
 }
