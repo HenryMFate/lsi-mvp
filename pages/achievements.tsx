@@ -21,6 +21,9 @@ export default function Ach(){
           )
         })}
       </div>
+      <div style={{marginTop:24}}>
+        <a href="/" className="btn">← Back to Home</a>
+      </div>
     </div>
   )
 }

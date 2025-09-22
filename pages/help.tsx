@@ -17,7 +17,7 @@ export default function Help(){
       </div>
 
       <div className='card' style={{marginTop:12}}>
-        <h3>Privacy & Data (Google Play–ready)</h3>
+        <h3>Privacy & Data</h3>
         <p className='small'>
           We do not collect personally identifiable information. You get a short anonymous ID, stored on your device, so your activity can be summarized anonymously for scoreboard totals. We store action logs with that anonymous ID and a date. No contact lists, no precise location, no background tracking.
         </p>
@@ -29,6 +29,10 @@ export default function Help(){
           <li><strong>Permissions:</strong> none beyond normal internet access.</li>
           <li><strong>Delete:</strong> you can delete recent actions in-app; contact LSI for broader deletion.</li>
         </ul>
+      </div>
+
+      <div style={{marginTop:24}}>
+        <a href="/" className="btn">← Back to Home</a>
       </div>
     </div>
   )

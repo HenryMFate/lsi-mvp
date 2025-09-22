@@ -1,3 +1,4 @@
+
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { getSupabase } from '../lib/supabase'
@@ -104,10 +105,9 @@ export default function Home(){
     })()
   }, [today, leadDays, anonId, sb])
 
-  // Milestone popup when crossing XP thresholds
   useEffect(()=>{
     const last = Number(localStorage.getItem('last_xp_milestone')||'0')
-    const current = XP_MILESTONES.filter(m => m <= totalXP).slice(-1)[0] || 0
+    const current = [0,250,500,1000,2000,4000,8000].filter(m => m <= totalXP).slice(-1)[0] || 0
     if (current > last){
       localStorage.setItem('last_xp_milestone', String(current))
       if (current > 0) setShowMilestone(current)
@@ -124,7 +124,6 @@ export default function Home(){
     setRecent(rec||[] as any[])
     const { data: d } = await sb.from('community_totals_daily').select('*').eq('day', today).maybeSingle()
     setDaily(d||null)
-    // refresh XP
     const { data: xpsum, error: xpErr } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single()
     if (!xpErr) setTotalXP((xpsum as any)?.xp ? Number((xpsum as any).xp) : 0)
     alert('Nice work! +' + xp + ' XP')
@@ -187,7 +186,6 @@ export default function Home(){
       const body:any = { anon_id:(anonId||'').toLowerCase(), date, category:'reflection', description:desc, minutes, with_friend:withFriend, xp:XP_VALUES.general, source:'own' }
       const { error } = await sb.from('actions').insert(body)
       if (error){ alert(error.message); return; }
-      // refresh xp
       const { data: xpsum, error: xpErr } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single()
       if (!xpErr) setTotalXP((xpsum as any)?.xp ? Number((xpsum as any).xp) : 0)
       setDesc(''); alert('Logged your own action (+'+XP_VALUES.general+' XP)')
@@ -225,7 +223,7 @@ export default function Home(){
       <div className="card" style={{maxWidth:440, textAlign:'center'}} onClick={e=>e.stopPropagation()}>
         <div style={{fontSize:44}}>🎖️</div>
         <h3>Milestone unlocked</h3>
-        <p className="small">You just crossed <strong>{showMilestone.toLocaleString()} XP</strong> — keep going, ya know!</p>
+        <p className="small">You just crossed <strong>{showMilestone.toLocaleString()} XP</strong> — keep going!</p>
         <button className="btn" onClick={()=>setShowMilestone(null)}>Nice!</button>
       </div>
     </div>
@@ -256,11 +254,7 @@ export default function Home(){
           </div>
         </div>
 
-        <div className="card">
-          <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
-        </div>
-
-        {/* Lifetime XP + progress to next badge */}
+        {/* Lifetime XP + progress to next badge (legend removed to avoid duplication) */}
         <div className="card" style={{marginTop:12, padding:'18px 16px',
           background: 'linear-gradient(90deg, rgba(90,166,255,.22), rgba(61,141,240,.16))'}}>
           <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
@@ -280,15 +274,8 @@ export default function Home(){
               Next badge at <strong>{t.next.toLocaleString()} XP</strong> •
               <strong> {t.remaining.toLocaleString()} XP</strong> to go
             </div>
-            <div style={{
-              height:10, background:'#162a55', borderRadius:999, overflow:'hidden',
-              border:'1px solid rgba(168,182,217,.35)', marginTop:6
-            }}>
-              <div style={{
-                height:'100%', width: t.pct+'%',
-                background:'linear-gradient(90deg,#ffe75a,#fff2a6)',
-                transition:'width .3s ease'
-              }}/>
+            <div style={{height:10, background:'#162a55', borderRadius:999, overflow:'hidden', border:'1px solid rgba(168,182,217,.35)', marginTop:6}}>
+              <div style={{height:'100%', width: t.pct+'%', background:'linear-gradient(90deg,#ffe75a,#fff2a6)', transition:'width .3s ease'}}/>
             </div>
           </div>
         </div>

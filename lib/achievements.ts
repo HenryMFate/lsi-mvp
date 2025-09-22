@@ -19,7 +19,6 @@ export function saveAch(s: Set<string>){ localStorage.setItem(KEY, JSON.stringif
 export function loadBest(): number { try { return Number(localStorage.getItem(BEST)||'0'); } catch { return 0; } }
 export function saveBest(n: number){ localStorage.setItem(BEST, String(n)); }
 
-
 export const XP_MILESTONES = [0, 250, 500, 1000, 2000, 4000, 8000];
 export function nextXpTarget(total: number){
   let next = XP_MILESTONES.find(m => m > total);

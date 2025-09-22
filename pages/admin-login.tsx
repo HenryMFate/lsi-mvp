@@ -10,6 +10,9 @@ export default function AdminLogin(){
         <input className="input" type="password" value={p} onChange={e=>setP(e.target.value)} placeholder="Admin password" />
         <button className="btn" style={{marginTop:10}}>Enter</button>
       </form>
+      <div style={{marginTop:24}}>
+        <a href="/" className="btn">← Back to Home</a>
+      </div>
     </div>
   )
 }
