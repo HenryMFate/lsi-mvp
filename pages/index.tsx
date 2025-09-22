@@ -49,6 +49,7 @@ export default function Home(){
   const [openIdx, setOpenIdx] = useState<number|null>(null)
   const [daily, setDaily] = useState<any>(null)
   const [totalAll, setTotalAll] = useState<number>(0)
+  const [totalXP, setTotalXP] = useState<number>(0)
   const [anonId, setAnonId] = useState<string>('')
   const [recent, setRecent] = useState<any[]>([])
   const [loggedSet, setLoggedSet] = useState<Set<string>>(new Set())
@@ -82,6 +83,9 @@ export default function Home(){
 
       const { count } = await sb.from('actions').select('*', { count: 'exact', head: true })
       setTotalAll(count || 0)
+
+      const { data: xpsum } = await sb.rpc('sum_user_xp', { p_anon_id: (anonId||'').toLowerCase() }).single().catch(()=>({ data: { xp: 0 } }))
+      setTotalXP((xpsum && (xpsum as any).xp) ? Number((xpsum as any).xp) : 0)
 
       const { data: totals } = await sb.from('actions').select('date').eq('anon_id', (anonId||'').toLowerCase()).order('date', {ascending:false}).limit(400)
       const totalActions = (totals||[]).length
@@ -226,10 +230,20 @@ export default function Home(){
           <div className="small">LSI actions: +{XP_VALUES.org} XP • General: +{XP_VALUES.general} XP</div>
         </div>
 
-        <div className="card" style={{marginTop:12, display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, alignItems:'center'}}>
-          <div><div className="small">Today's community actions</div><div style={{fontSize:28, fontWeight:900}}> {(daily?.actions||0)} </div></div>
-          <div><div className="small">All-time actions</div><div style={{fontSize:28, fontWeight:900}}> {Intl.NumberFormat().format(totalAll)} </div></div>
-        </div>
+<div className="card" style={{marginTop:12, padding:'18px 16px', background: 'linear-gradient(90deg, rgba(90,166,255,.22), rgba(61,141,240,.16))'}}>
+  <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:12}}>
+    <div>
+      <div className="small">Your lifetime XP</div>
+      <div style={{fontSize:34, fontWeight:900, letterSpacing:.3}}>{Intl.NumberFormat().format(totalXP)}</div>
+    </div>
+    <div style={{display:'grid', gap:6}}>
+      <div className="badge">+{XP_VALUES.org} XP per LSI</div>
+      <div className="badge">+{XP_VALUES.general} XP per general</div>
+    </div>
+  </div>
+</div>
+
+
 
         <div className="card">
           <div style={{fontWeight:800}}>Daily Progress</div>
